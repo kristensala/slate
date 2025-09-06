@@ -2,8 +2,7 @@ package main
 
 import sdl "vendor:sdl2"
 
-@(private)
-EDITOR_FONT_SIZE :: 20
+@(private) EDITOR_FONT_SIZE :: 20
 
 Editor :: struct {
     lines: [dynamic]Line,

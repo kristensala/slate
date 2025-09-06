@@ -45,6 +45,9 @@ main :: proc() {
 
     defer ttf.CloseFont(font)
 
+    atlas: Atlas
+    build_atlas(renderer, font, &atlas)
+
     // render example text
     text_color: sdl.Color = {255, 255, 255, 255}
     surface := ttf.RenderUTF8_Blended(font, "slate_editor", text_color)
@@ -74,6 +77,7 @@ main :: proc() {
             #partial switch event.type {
             case .QUIT:
                 running = false
+                //free(atlas)
                 break loop
             case .KEYDOWN:
                 fmt.print(event.key.keysym.sym)
