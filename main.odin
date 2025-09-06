@@ -4,17 +4,6 @@ import "core:fmt"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
-/*
-   @todo:
-   When you have tons of dynamic text
-   If you’re rendering hundreds of changing strings
-   (e.g., chat with rapid updates, code editors, roguelikes),
-   consider a glyph atlas/bitmap font approach (cache each
-   glyph once and build strings by drawing quads).
-
-   read about "glyph atlas + batching"
-   https://www.parallelrealities.co.uk/tutorials/ttf/ttf2.php
- */
 main :: proc() {
     if sdl.Init({.VIDEO}) != 0 {
         fmt.eprintln("sdl.Init failed: ", sdl.GetError())
