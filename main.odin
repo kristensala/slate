@@ -4,9 +4,17 @@ import "core:fmt"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
-@(private)
-FONT_SIZE :: 20
+/*
+   @todo:
+   When you have tons of dynamic text
+   If you’re rendering hundreds of changing strings
+   (e.g., chat with rapid updates, code editors, roguelikes),
+   consider a glyph atlas/bitmap font approach (cache each
+   glyph once and build strings by drawing quads).
 
+   read about "glyph atlas + batching"
+   https://www.parallelrealities.co.uk/tutorials/ttf/ttf2.php
+ */
 main :: proc() {
     if sdl.Init({.VIDEO}) != 0 {
         fmt.eprintln("sdl.Init failed: ", sdl.GetError())
@@ -30,12 +38,9 @@ main :: proc() {
 
     defer sdl.DestroyWindow(window)
 
-    // Set background color of the window
-    // We must call SDL_CreateRenderer in order for draw calls to affect this window.
     renderer := sdl.CreateRenderer(window, -1, {.SOFTWARE})
     defer sdl.DestroyRenderer(renderer)
 
-    // Load a font
     if ttf.Init() != 0 {
         fmt.eprintln("Faild to initialize ttf library", ttf.GetError())
         return
@@ -43,7 +48,7 @@ main :: proc() {
 
     defer ttf.Quit()
 
-    font := ttf.OpenFont("./fonts/IBMPlexMono-Regular.ttf", FONT_SIZE)
+    font := ttf.OpenFont("./fonts/IBMPlexMono-Regular.ttf", EDITOR_FONT_SIZE)
     if font == nil {
         fmt.eprintln("Failed to load font: ", ttf.GetError())
         return
@@ -53,7 +58,7 @@ main :: proc() {
 
     // render example text
     text_color: sdl.Color = {255, 255, 255, 255}
-    surface := ttf.RenderUTF8_Blended(font, "Hello", text_color)
+    surface := ttf.RenderUTF8_Blended(font, "slate_editor", text_color)
     if surface == nil {
         fmt.eprintln("Failed to create a surface: ", ttf.GetError())
         return
@@ -72,6 +77,7 @@ main :: proc() {
     sdl.QueryTexture(texture, nil, nil, &text_width, &text_height)
     text_destination : sdl.Rect = {10, 10, text_width, text_height}
 
+    // Main "game" loop
     running := true
     loop: for(running) {
         event : sdl.Event
@@ -80,10 +86,14 @@ main :: proc() {
             case .QUIT:
                 running = false
                 break loop
+            case .KEYDOWN:
+                fmt.print(event.key.keysym.sym)
+                break
             }
         }
 
-        sdl.SetRenderDrawColor(renderer, 255, 0, 0, 255) // red
+        // Set background color of the window
+        sdl.SetRenderDrawColor(renderer, 105, 105, 105, 0) // gray
 
         // Drawing should be done between RenderClear and RenderPresent
         sdl.RenderClear(renderer)
