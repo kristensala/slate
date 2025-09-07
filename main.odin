@@ -6,6 +6,11 @@ import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
 main :: proc() {
+    /*
+       @note: sdl.CreateWindow already calls sdl.Init if it
+       is not called, but it is still a good practice
+       to call sdl.Init beforehand
+     */
     if sdl.Init({.VIDEO}) != 0 {
         fmt.eprintln("sdl.Init failed: ", sdl.GetError())
         return
@@ -36,7 +41,7 @@ main :: proc() {
     defer sdl.DestroyRenderer(renderer)
 
     if ttf.Init() != 0 {
-        fmt.eprintln("Faild to initialize ttf library", ttf.GetError())
+        fmt.eprintln("Failed to initialize ttf library", ttf.GetError())
         return
     }
 
@@ -101,6 +106,20 @@ main :: proc() {
                 }
                 if keycode == .BACKSPACE {
                     // @todo: delete char
+                }
+
+                if keycode == .UP {
+                    if current_line == 0 {
+                        break
+                    }
+                    current_line -= 1
+                }
+
+                if keycode == .DOWN {
+                    if int(current_line + 1) == len(editor_lines) {
+                        break
+                    }
+                    current_line += 1
                 }
                 break
 
