@@ -59,6 +59,8 @@ main :: proc() {
     build_atlas(renderer, font, &atlas)
 
     editor_lines : [dynamic]Line
+    defer delete(editor_lines)
+
     line_chars : [dynamic]rune
     append(&editor_lines, Line{
         x = 0,
@@ -85,7 +87,6 @@ main :: proc() {
             #partial switch event.type {
             case .QUIT:
                 running = false
-                clear(&editor_lines)
                 break loop
             case .TEXTINPUT:
                 character := rune(event.text.text[0])
