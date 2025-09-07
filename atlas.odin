@@ -85,9 +85,8 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         return
     }
 
+    // Atlas background transparent
     sdl.FillRect(atlas.surface, nil, sdl.MapRGBA(atlas.surface.format, 0, 0, 0, 0));
-
-    glyphs: map[int]Glyph
 
     for cp in FIRST_CODE_POINT..=LAST_CODE_POINT {
         col := i32(cp % COLS)
@@ -154,25 +153,30 @@ get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
     return glyph
 }
 
-draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string) {
+draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, lines: [dynamic]Line) {
     pen_x : i32 = 0
     baseline : i32 = 0 + atlas.font_ascent
 
-    for character in text {
-        code_point := int(character)
-        glyph := get_glyph_from_atlas(atlas, code_point)
+    for line in lines {
+        for character in line.chars {
+            code_point := int(character)
+            glyph := get_glyph_from_atlas(atlas, code_point)
 
-        // @todo: what to do if a control character
-        if glyph == nil {
-            continue
+            // @todo: what to do if a control character
+            if glyph == nil {
+                continue
+            }
+
+            glyph_x := pen_x + glyph.bearing_x
+            glyph_y := baseline //- glyph.bearing_y
+            destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
+
+            sdl.RenderCopy(renderer, atlas.texture, &glyph.rect, &destination)
+            pen_x += glyph.advance;
         }
 
-        glyph_x := pen_x + glyph.bearing_x
-        glyph_y := baseline //- glyph.bearing_y
-        destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
-
-        sdl.RenderCopy(renderer, atlas.texture, &glyph.rect, &destination)
-        pen_x += glyph.advance;
+        baseline += atlas.font_line_skip
+        pen_x = 0
     }
 }
 

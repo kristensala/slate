@@ -29,6 +29,10 @@ main :: proc() {
     defer sdl.DestroyWindow(window)
 
     renderer := sdl.CreateRenderer(window, -1, {.SOFTWARE})
+    if renderer == nil {
+        fmt.eprintln("Could not create a renderer: ", sdl.GetError())
+        return
+    }
     defer sdl.DestroyRenderer(renderer)
 
     if ttf.Init() != 0 {
@@ -49,29 +53,24 @@ main :: proc() {
     atlas := Atlas{}
     build_atlas(renderer, font, &atlas)
 
-    // render example text
-    text_color: sdl.Color = {255, 255, 255, 255}
-    surface := ttf.RenderUTF8_Blended(font, "slate_editor", text_color)
-    if surface == nil {
-        fmt.eprintln("Failed to create a surface: ", ttf.GetError())
-        return
-    }
-    defer sdl.FreeSurface(surface)
+    editor_lines : [dynamic]Line
+    line_chars : [dynamic]rune
+    append(&editor_lines, Line{
+        x = 0,
+        y = 0,
+        chars = line_chars
+    })
 
-    texture := sdl.CreateTextureFromSurface(renderer, surface)
-    defer sdl.DestroyTexture(texture)
-
-    if texture == nil {
-        fmt.eprintln("Failed to create a texture: ", sdl.GetError())
-        return
+    editor := Editor{
+        renderer = renderer,
+        lines = editor_lines,
+        glyph_atlas = &atlas
     }
 
-    text_width, text_height : i32 = 100, 100
-    sdl.QueryTexture(texture, nil, nil, &text_width, &text_height)
-    text_destination : sdl.Rect = {10, 10, text_width, text_height}
+    // current active line
+    current_line : i32
 
-    foo := strings.builder_make()
-    defer strings.builder_destroy(&foo)
+    assert(len(editor_lines) > 0, "Editor lines should have at least one line on startup")
 
     // Main "game" loop
     running := true
@@ -81,12 +80,30 @@ main :: proc() {
             #partial switch event.type {
             case .QUIT:
                 running = false
+                clear(&editor_lines)
                 break loop
-            case .KEYDOWN:
-                fmt.print(event.key.keysym.sym)
-                character := rune(event.key.keysym.sym)
-                strings.write_encoded_rune(&foo, character, false)
+            case .TEXTINPUT:
+                character := rune(event.text.text[0])
+                append(&editor_lines[current_line].chars, character)
                 break
+            case .KEYDOWN:
+                keycode := event.key.keysym.sym
+                if keycode == .RETURN {
+                    current_line += 1
+
+                    line_chars : [dynamic]rune
+                    append(&editor_lines, Line{
+                        x = 0,
+                        y = current_line,
+                        chars = line_chars
+                    })
+                    break
+                }
+                if keycode == .BACKSPACE {
+                    // @todo: delete char
+                }
+                break
+
             }
         }
 
@@ -96,8 +113,7 @@ main :: proc() {
         // Drawing should be done between RenderClear and RenderPresent
         sdl.RenderClear(renderer)
 
-        //sdl.RenderCopy(renderer, texture, nil, &text_destination)
-        draw_text(renderer, &atlas, strings.to_string(foo))
+        draw_text(renderer, &atlas, editor_lines)
 
         sdl.RenderPresent(renderer)
     }
