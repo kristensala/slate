@@ -158,8 +158,6 @@ draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string) {
     pen_x : i32 = 0
     baseline : i32 = 0 + atlas.font_ascent
 
-    color : sdl.Color = { 255, 255, 255, 255}
-
     for character in text {
         code_point := int(character)
         glyph := get_glyph_from_atlas(atlas, code_point)
