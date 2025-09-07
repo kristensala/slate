@@ -4,8 +4,6 @@ import "core:fmt"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
-@(private = "file") ATLAS_H :: 1024
-@(private = "file") ATLAS_W :: 1024
 @(private = "file") COLS :: 16
 @(private = "file") ROWS :: 10
 
@@ -20,8 +18,8 @@ Atlas :: struct {
     height: i32,
     width: i32,
     font_line_skip: i32, // vertical step for going to the next line of text.
-    font_ascent: i32, // @explain
-    font_descent: i32, // @explain
+    font_ascent: i32,
+    font_descent: i32,
     glyphs: map[int]Glyph
 }
 
@@ -162,7 +160,6 @@ draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, lines: [dynamic]Line) 
             code_point := int(character)
             glyph := get_glyph_from_atlas(atlas, code_point)
 
-            // @todo: what to do if a control character
             if glyph == nil {
                 continue
             }
