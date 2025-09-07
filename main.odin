@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:strings"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
@@ -45,7 +46,7 @@ main :: proc() {
 
     defer ttf.CloseFont(font)
 
-    atlas: Atlas
+    atlas := Atlas{}
     build_atlas(renderer, font, &atlas)
 
     // render example text
@@ -69,6 +70,9 @@ main :: proc() {
     sdl.QueryTexture(texture, nil, nil, &text_width, &text_height)
     text_destination : sdl.Rect = {10, 10, text_width, text_height}
 
+    foo := strings.builder_make()
+    defer strings.builder_destroy(&foo)
+
     // Main "game" loop
     running := true
     loop: for(running) {
@@ -77,10 +81,11 @@ main :: proc() {
             #partial switch event.type {
             case .QUIT:
                 running = false
-                //free(atlas)
                 break loop
             case .KEYDOWN:
                 fmt.print(event.key.keysym.sym)
+                character := rune(event.key.keysym.sym)
+                strings.write_encoded_rune(&foo, character, false)
                 break
             }
         }
@@ -91,7 +96,8 @@ main :: proc() {
         // Drawing should be done between RenderClear and RenderPresent
         sdl.RenderClear(renderer)
 
-        sdl.RenderCopy(renderer, texture, nil, &text_destination)
+        //sdl.RenderCopy(renderer, texture, nil, &text_destination)
+        draw_text(renderer, &atlas, strings.to_string(foo))
 
         sdl.RenderPresent(renderer)
     }

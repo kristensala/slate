@@ -26,23 +26,12 @@ Atlas :: struct {
 }
 
 Glyph :: struct {
-    rect: ^sdl.Rect,
+    rect: sdl.Rect,
     width, height: i32,
     advance: i32, // how far to move the pen after drawing
     bearing_x, bearing_y: i32, // bearingY: height above baseline (use ttf.GlyphMetrics32)
 }
 
-/*
-   @todo:
-   When you have tons of dynamic text
-   If you’re rendering hundreds of changing strings
-   (e.g., chat with rapid updates, code editors, roguelikes),
-   consider a glyph atlas/bitmap font approach (cache each
-   glyph once and build strings by drawing quads).
-
-   read about "glyph atlas + batching"
-   https://www.parallelrealities.co.uk/tutorials/ttf/ttf2.php
- */
 build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
     atlas.font_line_skip = ttf.FontLineSkip(font)
     atlas.font_ascent = ttf.FontAscent(font)
@@ -83,20 +72,19 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         }
     }
 
-    pad : i32 = 2
+    pad : i32 = 3
     cell_w := max_w + pad * 2
-    cell_h := max_h + pad * 2
+    cell_h := max_h + EDITOR_FONT_SIZE
     atlas_w := COLS * cell_w
     atlas_h := ROWS * cell_h
 
-    foo : sdl.PixelFormatEnum = .RGBX8888
-    atlas.surface = sdl.CreateRGBSurfaceWithFormat(0, atlas_w, atlas_h, 32, u32(foo))
+    pixel_format : sdl.PixelFormatEnum = .RGBA8888
+    atlas.surface = sdl.CreateRGBSurfaceWithFormat(0, atlas_w, atlas_h, 32, u32(pixel_format))
     if atlas.surface == nil {
         fmt.eprintln("Could not create atlas' surface: ", sdl.GetError())
         return
     }
 
-    // Clear to transparent/black
     sdl.FillRect(atlas.surface, nil, sdl.MapRGBA(atlas.surface.format, 0, 0, 0, 0));
 
     glyphs: map[int]Glyph
@@ -125,10 +113,10 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
 
         // Position the glyph bitmap inside the cell so that the glyph's baseline aligns consistently.
         // Baseline of the cell: top + pad + ascent
-        baselineY := cell.y + pad + atlas.font_ascent
+        baseline_y := cell.y + pad + atlas.font_ascent
         // Top-left where bitmap should go:
         dst_x := cell.x + pad + min_x        // minx = bearingX
-        dst_y := baselineY
+        dst_y := baseline_y
 
         dst : sdl.Rect = { dst_x, dst_y, glyph_surface.w, glyph_surface.h }
         src : sdl.Rect = { 0, 0, glyph_surface.w, glyph_surface.h }
@@ -136,7 +124,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         sdl.BlitSurface(glyph_surface, &src, atlas.surface, &dst);
 
         atlas.glyphs[cp] = Glyph{
-            rect = &dst,
+            rect = dst,
             advance = adv,
             bearing_x = min_x,
             bearing_y = max_y,
@@ -151,40 +139,37 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         return
     }
 
+    sdl.SetTextureBlendMode(atlas.texture, .BLEND)
+
+    // For debug purpouse
     sdl.SaveBMP(atlas.surface, "test.bmp")
 }
 
-draw_string :: proc(atlas: Atlas, data: string) {
-}
-
-/*static inline Glyph* atlas_get(Atlas* a, int cp) {
-    if (cp < FIRST_CP || cp > LAST_CP) return NULL;
-    Glyph* g = &a->glyphs[cp - FIRST_CP];
-    return g->valid ? g : NULL;
-}
-
-static void draw_text(SDL_Renderer* r, Atlas* a, const char* text, int x, int y, SDL_Color color) {
-    // y is top-left of line; baseline is y + a->ascent
-    int penX = x;
-    int baseline = y + a->ascent;
-
-    SDL_SetTextureColorMod(a->tex, color.r, color.g, color.b);
-    SDL_SetTextureAlphaMod(a->tex, color.a);
-    SDL_SetTextureBlendMode(a->tex, SDL_BLENDMODE_BLEND);
-
-    for (const unsigned char* p = (const unsigned char*)text; *p; ++p) {
-        unsigned char ch = *p;
-        Glyph* g = atlas_get(a, ch);
-        if (!g) { // simple fallback for unsupported glyphs
-            penX += a->glyphs[' ' - FIRST_CP].advance;
-            continue;
-        }
-
-        int gx = penX + g->bearingX;
-        int gy = baseline - g->bearingY;
-
-        SDL_Rect dst = { gx, gy, g->w, g->h };
-        SDL_RenderCopy(r, a->tex, &g->uv, &dst);
-        penX += g->advance;
+get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
+    glyph := &atlas.glyphs[code_point]
+    if glyph == nil {
+        return nil
     }
-}*/
+
+    return glyph
+}
+
+draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string) {
+    pen_x : i32 = 0
+    baseline : i32 = 0 + atlas.font_ascent
+
+    color : sdl.Color = { 255, 255, 255, 255}
+
+    for character in text {
+        code_point := int(character)
+        glyph := get_glyph_from_atlas(atlas, code_point)
+
+        glyph_x := pen_x + glyph.bearing_x
+        glyph_y := baseline //- glyph.bearing_y
+        destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
+
+        sdl.RenderCopy(renderer, atlas.texture, &glyph.rect, &destination)
+        pen_x += glyph.advance;
+    }
+}
+
