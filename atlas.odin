@@ -164,6 +164,11 @@ draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string) {
         code_point := int(character)
         glyph := get_glyph_from_atlas(atlas, code_point)
 
+        // @todo: what to do if a control character
+        if glyph == nil {
+            continue
+        }
+
         glyph_x := pen_x + glyph.bearing_x
         glyph_y := baseline //- glyph.bearing_y
         destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
