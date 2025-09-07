@@ -12,7 +12,6 @@ Editor :: struct {
 
 Line :: struct {
     chars: [dynamic]rune,
-    number: i32,
     x, y: i32
 }
 

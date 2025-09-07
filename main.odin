@@ -97,11 +97,11 @@ main :: proc() {
                     current_line += 1
 
                     line_chars : [dynamic]rune
-                    append(&editor_lines, Line{
+                    append_line_at(&editor_lines, Line{
                         x = 0,
                         y = current_line,
                         chars = line_chars
-                    })
+                    }, current_line)
                     break
                 }
                 if keycode == .BACKSPACE {
