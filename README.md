@@ -2,7 +2,7 @@
 Text editor in Odin
 
 ## TODO
-- [ ] Cache lines
+- [ ] Cache lines (mark lined dirty if they need to be rebuilt)
 - [ ] Render only visible lines
 - [ ] Scrolling
 - [ ] Cursor
