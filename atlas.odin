@@ -24,7 +24,7 @@ Atlas :: struct {
 }
 
 Glyph :: struct {
-    rect: sdl.Rect,
+    uv: sdl.Rect,
     width, height: i32,
     advance: i32, // how far to move the pen after drawing
     bearing_x, bearing_y: i32, // bearingY: height above baseline (use ttf.GlyphMetrics32)
@@ -121,7 +121,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         sdl.BlitSurface(glyph_surface, &src, atlas.surface, &dst);
 
         atlas.glyphs[cp] = Glyph{
-            rect = dst,
+            uv = dst,
             advance = adv,
             bearing_x = min_x,
             bearing_y = max_y,
@@ -139,7 +139,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
     sdl.SetTextureBlendMode(atlas.texture, .BLEND)
 
     // For debug purpouse
-    //sdl.SaveBMP(atlas.surface, "test.bmp")
+    sdl.SaveBMP(atlas.surface, "test.bmp")
 }
 
 get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
@@ -151,14 +151,15 @@ get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
     return glyph
 }
 
-draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, lines: [dynamic]Line) {
+draw_text :: proc(editor: ^Editor) -> (i32, i32) {
     pen_x : i32 = 0
-    baseline : i32 = 0 + atlas.font_ascent
+    baseline : i32 = 0
 
-    for line in lines {
+    // @todo: cache lines
+    for line in editor.lines {
         for character in line.chars {
             code_point := int(character)
-            glyph := get_glyph_from_atlas(atlas, code_point)
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, code_point)
 
             if glyph == nil {
                 continue
@@ -168,12 +169,15 @@ draw_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, lines: [dynamic]Line) 
             glyph_y := baseline //- glyph.bearing_y
             destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
 
-            sdl.RenderCopy(renderer, atlas.texture, &glyph.rect, &destination)
+            sdl.RenderCopy(editor.renderer, editor.glyph_atlas.texture, &glyph.uv, &destination)
             pen_x += glyph.advance;
+
         }
 
-        baseline += atlas.font_line_skip
+        baseline += editor.glyph_atlas.font_line_skip
         pen_x = 0
     }
+
+    return pen_x, baseline - editor.glyph_atlas.font_line_skip + 6 // 6 is the pad in altas
 }
 

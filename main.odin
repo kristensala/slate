@@ -5,6 +5,15 @@ import "core:strings"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
+/*
+   TODO:
+   - show line numbers
+   - if pressing enter in the middle of the row, move text right from the cursor to the next line
+   - when moving with arrows and reach either the end or the beginning of the line, move to the next/previous line
+   - ability to open files
+   - scroll (and render only the visible lines)
+   - text selection
+ */
 main :: proc() {
     /*
        @note: sdl.CreateWindow already calls sdl.Init if it
@@ -62,10 +71,12 @@ main :: proc() {
     defer delete(editor_lines)
 
     line_chars : [dynamic]rune
+    defer delete(line_chars)
+
     append(&editor_lines, Line{
         x = 0,
         y = 0,
-        chars = line_chars
+        chars = line_chars,
     })
 
     editor := Editor{
@@ -74,10 +85,20 @@ main :: proc() {
         glyph_atlas = &atlas
     }
 
-    // current active line
-    current_line : i32
+    current_line_idx : i32 // current active line
+    current_col_idx : i32 // current active column
 
-    assert(len(editor_lines) > 0, "Editor lines should have at least one line on startup")
+    // where the cursor is positioned on the screen
+    cursor_x: i32
+    cursor_y: i32
+
+    assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
+
+    line_height := editor.glyph_atlas.font_line_skip
+
+    cursor_visible := true
+    blink_interval : i32 = 400
+    next_blink := sdl.GetTicks() + u32(blink_interval)
 
     // Main "game" loop
     running := true
@@ -88,43 +109,101 @@ main :: proc() {
             case .QUIT:
                 running = false
                 break loop
-            case .TEXTINPUT:
+            case .TEXTINPUT: // @todo: add 4 spaces if tab is pressed
+                glyph := get_glyph_from_atlas(editor.glyph_atlas, int(event.text.text[0]))
+                cursor_x += glyph.advance
+
                 character := rune(event.text.text[0])
-                append(&editor_lines[current_line].chars, character)
+                line := &editor.lines[current_line_idx]
+                append_char_at(&line.chars, character, current_col_idx)
+                current_col_idx += 1
                 break
             case .KEYDOWN:
                 keycode := event.key.keysym.sym
                 if keycode == .RETURN {
-                    current_line += 1
+                    current_line_idx += 1
+                    current_col_idx = 0
+                    cursor_x = 0
+                    cursor_y += line_height
 
                     line_chars : [dynamic]rune
-                    append_line_at(&editor_lines, Line{
+                    append_line_at(&editor.lines, Line{
                         x = 0,
-                        y = current_line,
+                        y = current_line_idx,
                         chars = line_chars
-                    }, current_line)
+                    }, current_line_idx)
                     break
                 }
                 if keycode == .BACKSPACE {
-                    // @todo: delete char
+                    if current_col_idx == 0 {
+                        break
+                    }
+
+                    line := &editor.lines[current_line_idx]
+                    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[current_col_idx - 1]))
+                    ordered_remove(&line.chars, current_col_idx - 1)
+                    current_col_idx -= 1
+                    cursor_x -= glyph.advance
+                    break
                 }
 
                 if keycode == .UP {
-                    if current_line == 0 {
+                    if current_line_idx == 0 {
                         break
                     }
-                    current_line -= 1
+                    current_line_idx -= 1
+                    current_col_idx = 0
+
+                    cursor_y -= line_height
+                    cursor_x = 0
+                    break
                 }
 
                 if keycode == .DOWN {
-                    if int(current_line + 1) == len(editor_lines) {
+                    if int(current_line_idx + 1) == len(editor.lines) {
                         break
                     }
-                    current_line += 1
+                    current_line_idx += 1
+                    current_col_idx = 0
+                    cursor_y += line_height
+                    cursor_x = 0
+                    break
+                }
+
+                if keycode == .LEFT {
+                    if current_col_idx == 0 {
+                        break
+                    }
+
+                    current_col_idx -= 1
+                    line := editor.lines[current_line_idx]
+                    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[current_col_idx]))
+                    cursor_x -= glyph.advance
+                    break
+                }
+
+                if keycode == .RIGHT {
+                    line := editor.lines[current_line_idx]
+                    char_count := i32(len(line.chars))
+
+                    if current_col_idx >= char_count {
+                        break
+                    }
+
+                    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[current_col_idx]))
+                    cursor_x += glyph.advance
+                    current_col_idx += 1
+                    break
                 }
                 break
 
             }
+        }
+
+        current_tick := sdl.GetTicks()
+        if current_tick >= next_blink {
+            cursor_visible = !cursor_visible
+            next_blink += u32(blink_interval)
         }
 
         // Set background color of the window
@@ -133,7 +212,13 @@ main :: proc() {
         // Drawing should be done between RenderClear and RenderPresent
         sdl.RenderClear(renderer)
 
-        draw_text(renderer, &atlas, editor_lines)
+        draw_text(&editor)
+
+        if cursor_visible {
+            sdl.SetRenderDrawColor(renderer, 0, 0, 255, 255)
+            rect: sdl.Rect = {cursor_x, cursor_y + 6, 5, 30}; // plus 6 is the pan in the atlas
+            sdl.RenderFillRect(renderer, &rect)
+        }
 
         sdl.RenderPresent(renderer)
     }

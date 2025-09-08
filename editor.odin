@@ -12,12 +12,10 @@ Editor :: struct {
 
 Line :: struct {
     chars: [dynamic]rune,
-    x, y: i32
+    x, y: i32,
 }
 
 Cursor :: struct {
-    rect: sdl.Rect,
-    line_nr: i32,
     x, y: i32
 }
 
