@@ -12,7 +12,7 @@ import ttf "vendor:sdl2/ttf"
    - when moving with arrows and reach either the end or the beginning of the line, move to the next/previous line
    - ability to open files
    - scroll (and render only the visible lines)
-   - text selection
+   - text selection(highlighting)
  */
 main :: proc() {
     /*
@@ -122,9 +122,13 @@ main :: proc() {
                 keycode := event.key.keysym.sym
                 if keycode == .RETURN {
                     current_line_idx += 1
+                    cursor_y += line_height
+
+                    // @todo: cursor col needs to stay the same if possible,
+                    // otherwise should be at the end of the line
                     current_col_idx = 0
                     cursor_x = 0
-                    cursor_y += line_height
+
 
                     line_chars : [dynamic]rune
                     append_line_at(&editor.lines, Line{
@@ -136,14 +140,20 @@ main :: proc() {
                 }
                 if keycode == .BACKSPACE {
                     if current_col_idx == 0 {
+                        if current_line_idx == 0 {
+                            break
+                        }
+
+                        // @todo: move to the previous line
                         break
                     }
 
-                    line := &editor.lines[current_line_idx]
-                    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[current_col_idx - 1]))
-                    ordered_remove(&line.chars, current_col_idx - 1)
                     current_col_idx -= 1
-                    cursor_x -= glyph.advance
+                    glyph_to_remove := get_glyph_by_cursor_pos(editor, current_line_idx, current_col_idx)
+
+                    line := &editor.lines[current_line_idx]
+                    ordered_remove(&line.chars, current_col_idx)
+                    cursor_x -= glyph_to_remove.advance
                     break
                 }
 
@@ -176,8 +186,7 @@ main :: proc() {
                     }
 
                     current_col_idx -= 1
-                    line := editor.lines[current_line_idx]
-                    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[current_col_idx]))
+                    glyph := get_glyph_by_cursor_pos(editor, current_line_idx, current_col_idx)
                     cursor_x -= glyph.advance
                     break
                 }

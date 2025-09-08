@@ -139,7 +139,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
     sdl.SetTextureBlendMode(atlas.texture, .BLEND)
 
     // For debug purpouse
-    sdl.SaveBMP(atlas.surface, "test.bmp")
+    //sdl.SaveBMP(atlas.surface, "test.bmp")
 }
 
 get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {

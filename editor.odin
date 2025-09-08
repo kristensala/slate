@@ -8,6 +8,7 @@ Editor :: struct {
     renderer: ^sdl.Renderer,
     glyph_atlas: ^Atlas,
     lines: [dynamic]Line,
+    cursor: ^Cursor
 }
 
 Line :: struct {
@@ -16,7 +17,9 @@ Line :: struct {
 }
 
 Cursor :: struct {
-    x, y: i32
+    line_index: i32,
+    col_index: i32,
+    x, y: i32 // pixel pos
 }
 
 // read file line by line
