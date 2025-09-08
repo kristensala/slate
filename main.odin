@@ -215,9 +215,7 @@ main :: proc() {
         draw_text(&editor)
 
         if cursor_visible {
-            sdl.SetRenderDrawColor(renderer, 0, 0, 255, 255)
-            rect: sdl.Rect = {cursor_x, cursor_y + 6, 5, 30}; // plus 6 is the pan in the atlas
-            sdl.RenderFillRect(renderer, &rect)
+            draw_rect(renderer, sdl.Color{0, 0, 255, 255}, {cursor_x, cursor_y + 6}, 5, 30)
         }
 
         sdl.RenderPresent(renderer)
