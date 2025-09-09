@@ -121,6 +121,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
     editor.cursor.x -= glyph_to_remove.advance
 }
 
+// @todo: move text right from the cursor to the new line
 editor_on_return :: proc(editor: ^Editor) {
     editor.cursor.line_index += 1
     editor.cursor.y += editor.line_height
@@ -148,6 +149,11 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.col_index += 1
 }
 
+draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
+    sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
+    rect: sdl.Rect = {pos.x, pos.y, w, h};
+    sdl.RenderFillRect(renderer, &rect)
+}
 
 @(private = "file")
 get_glyph_by_cursor_pos :: proc(editor: ^Editor, line: i32, col: i32) -> ^Glyph {
@@ -156,9 +162,4 @@ get_glyph_by_cursor_pos :: proc(editor: ^Editor, line: i32, col: i32) -> ^Glyph 
     return glyph
 }
 
-draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
-    sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
-    rect: sdl.Rect = {pos.x, pos.y, w, h};
-    sdl.RenderFillRect(renderer, &rect)
-}
 

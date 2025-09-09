@@ -86,18 +86,11 @@ main :: proc() {
         cursor = Cursor{
             line_index = 0,
             col_index = 0,
-            x = 40,
+            x = 40, // @fix: magic number
             y = 0
         },
         line_height = atlas.font_line_skip
     }
-
-    //editor.cursor.line_index : i32 // current active line
-    //editor.cursor.col_index : i32 // current active column
-
-    // where the cursor is positioned on the screen
-    //cursor_x: i32 = 40
-    //cursor_y: i32
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
