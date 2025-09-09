@@ -1,8 +1,13 @@
 package main
 
+import "core:fmt"
+import "core:strings"
 import sdl "vendor:sdl2"
+import ttf "vendor:sdl2/ttf"
 
 @(private) EDITOR_FONT_SIZE :: 30
+EDITOR_GUTTER_OFFSET_X :: 10
+EDITOR_OFFSET_X :: EDITOR_GUTTER_OFFSET_X + 50
 
 Vim_Mode :: enum {
     Normal,
@@ -12,6 +17,7 @@ Vim_Mode :: enum {
 
 Editor :: struct {
     renderer: ^sdl.Renderer,
+    font: ^ttf.Font,
     glyph_atlas: ^Atlas,
     lines: [dynamic]Line,
     cursor: Cursor,
@@ -32,10 +38,10 @@ Cursor :: struct {
 }
 
 editor_draw_text :: proc(editor: ^Editor) {
-    pen_x : i32 = 40
+    pen_x : i32 = EDITOR_OFFSET_X
     baseline : i32 = 0
 
-    for line in editor.lines {
+    for line, i in editor.lines {
         for character in line.chars {
             code_point := int(character)
             glyph := get_glyph_from_atlas(editor.glyph_atlas, code_point)
@@ -52,10 +58,10 @@ editor_draw_text :: proc(editor: ^Editor) {
             pen_x += glyph.advance;
         }
 
-        baseline += editor.glyph_atlas.font_line_skip
-        pen_x = 40
+        editor_draw_line_nr(editor, i + 1, {EDITOR_GUTTER_OFFSET_X, baseline})
 
-        // @todo: draw line numbers
+        baseline += editor.glyph_atlas.font_line_skip
+        pen_x = EDITOR_OFFSET_X
     }
 }
 
@@ -67,7 +73,7 @@ editor_move_cursor_up :: proc(editor: ^Editor) {
     editor.cursor.line_index -= 1
     editor.cursor.col_index = 0
     editor.cursor.y -= editor.line_height
-    editor.cursor.x = 40
+    editor.cursor.x = EDITOR_OFFSET_X
 }
 
 editor_move_cursor_down :: proc(editor: ^Editor) {
@@ -77,7 +83,7 @@ editor_move_cursor_down :: proc(editor: ^Editor) {
     editor.cursor.line_index += 1
     editor.cursor.col_index =0
     editor.cursor.y += editor.line_height
-    editor.cursor.x = 40
+    editor.cursor.x = EDITOR_OFFSET_X
 }
 
 editor_move_cursor_left :: proc(editor: ^Editor) {
@@ -129,7 +135,7 @@ editor_on_return :: proc(editor: ^Editor) {
     // @todo: cursor col needs to stay the same if possible,
     // otherwise should be at the end of the line
     editor.cursor.col_index = 0
-    editor.cursor.x = 40
+    editor.cursor.x = EDITOR_OFFSET_X
 
     line_chars : [dynamic]rune
     append_line_at(&editor.lines, Line{
@@ -149,10 +155,26 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.col_index += 1
 }
 
-draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
+editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
     sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
     rect: sdl.Rect = {pos.x, pos.y, w, h};
     sdl.RenderFillRect(renderer, &rect)
+}
+
+@(private = "file")
+editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
+    line_nr := fmt.tprintf("%v", line_nr)
+    line_nr_cstring := strings.clone_to_cstring(line_nr)
+    defer delete(line_nr_cstring)
+
+    surface := ttf.RenderUTF8_Blended(editor.font, line_nr_cstring, {255, 255, 255, 50})
+    defer sdl.FreeSurface(surface)
+
+    tex := sdl.CreateTextureFromSurface(editor.renderer, surface)
+    defer sdl.DestroyTexture(tex)
+
+    rect : sdl.Rect = {pos.x, pos.y, surface.w, surface.h}
+    sdl.RenderCopy(editor.renderer, tex, nil, &rect)
 }
 
 @(private = "file")

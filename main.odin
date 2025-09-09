@@ -81,12 +81,13 @@ main :: proc() {
 
     editor := Editor{
         renderer = renderer,
+        font = font,
         lines = editor_lines,
         glyph_atlas = &atlas,
         cursor = Cursor{
             line_index = 0,
             col_index = 0,
-            x = 40, // @fix: magic number
+            x = EDITOR_OFFSET_X,
             y = 0
         },
         line_height = atlas.font_line_skip
@@ -161,7 +162,7 @@ main :: proc() {
         editor_draw_text(&editor)
 
         if cursor_visible {
-            draw_rect(renderer, sdl.Color{0, 0, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, 30)
+            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, 30)
         }
 
         // rect for line numbers
