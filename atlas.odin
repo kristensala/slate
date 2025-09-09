@@ -12,6 +12,11 @@ import ttf "vendor:sdl2/ttf"
 @(private = "file") LAST_CODE_POINT :: 126 // ~ (tilde)
 @(private = "file") MAX_GLYPHS :: (LAST_CODE_POINT - FIRST_CODE_POINT + 1) // ASCII without control chars
 
+Vec2 :: struct {
+    x: f32,
+    y: f32
+}
+
 Atlas :: struct {
     texture: ^sdl.Texture,
     surface: ^sdl.Surface,
@@ -100,7 +105,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
             continue
         }
 
-        glyph_surface := ttf.RenderGlyph32_Blended(font, rune(cp), {255,255,255,255})
+        glyph_surface := ttf.RenderGlyph32_Blended(font, rune(cp), {232, 237, 199, 0})
         if glyph_surface == nil {
             fmt.eprintln("could not get glyph_surface")
             continue
@@ -111,8 +116,9 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         // Position the glyph bitmap inside the cell so that the glyph's baseline aligns consistently.
         // Baseline of the cell: top + pad + ascent
         baseline_y := cell.y + pad + atlas.font_ascent
+
         // Top-left where bitmap should go:
-        dst_x := cell.x + pad + min_x        // minx = bearingX
+        dst_x := cell.x + pad + min_x // minx = bearingX
         dst_y := baseline_y
 
         dst : sdl.Rect = { dst_x, dst_y, glyph_surface.w, glyph_surface.h }
@@ -139,7 +145,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
     sdl.SetTextureBlendMode(atlas.texture, .BLEND)
 
     // For debug purpouse
-    //sdl.SaveBMP(atlas.surface, "test.bmp")
+    sdl.SaveBMP(atlas.surface, "test.bmp")
 }
 
 get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
@@ -149,35 +155,5 @@ get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
     }
 
     return glyph
-}
-
-draw_text :: proc(editor: ^Editor) -> (i32, i32) {
-    pen_x : i32 = 0
-    baseline : i32 = 0
-
-    // @todo: cache lines
-    for line in editor.lines {
-        for character in line.chars {
-            code_point := int(character)
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, code_point)
-
-            if glyph == nil {
-                continue
-            }
-
-            glyph_x := pen_x + glyph.bearing_x
-            glyph_y := baseline //- glyph.bearing_y
-            destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
-
-            sdl.RenderCopy(editor.renderer, editor.glyph_atlas.texture, &glyph.uv, &destination)
-            pen_x += glyph.advance;
-
-        }
-
-        baseline += editor.glyph_atlas.font_line_skip
-        pen_x = 0
-    }
-
-    return pen_x, baseline - editor.glyph_atlas.font_line_skip + 6 // 6 is the pad in altas
 }
 
