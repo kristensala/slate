@@ -65,15 +65,18 @@ editor_draw_text :: proc(editor: ^Editor) {
     }
 }
 
-editor_move_cursor_up :: proc(editor: ^Editor) {
+editor_move_cursor_up :: proc(editor: ^Editor, override_col := false) {
     if editor.cursor.line_index == 0 {
         return
     }
 
     editor.cursor.line_index -= 1
-    editor.cursor.col_index = 0
     editor.cursor.y -= editor.line_height
-    editor.cursor.x = EDITOR_OFFSET_X
+
+    if !override_col {
+        editor.cursor.col_index = 0
+        editor.cursor.x = EDITOR_OFFSET_X
+    }
 }
 
 editor_move_cursor_down :: proc(editor: ^Editor) {
@@ -115,7 +118,23 @@ editor_on_backspace :: proc(editor: ^Editor) {
             return
         }
 
-        // @todo: move to the previous line
+        current_line := editor.lines[editor.cursor.line_index]
+        line_above_current_line := &editor.lines[editor.cursor.line_index - 1]
+
+        editor.cursor.col_index = i32(len(line_above_current_line.chars))
+        editor.cursor.x = EDITOR_OFFSET_X
+        for c in line_above_current_line.chars {
+            g := get_glyph_from_atlas(editor.glyph_atlas, int(c))
+            editor.cursor.x += g.advance
+        }
+
+        if len(current_line.chars) > 0 {
+            append(&line_above_current_line.chars, ..current_line.chars[:])
+        }
+
+
+        ordered_remove(&editor.lines, editor.cursor.line_index)
+        editor_move_cursor_up(editor, true)
         return
     }
 
