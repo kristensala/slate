@@ -27,8 +27,13 @@ Editor :: struct {
 }
 
 Line :: struct {
-    chars: [dynamic]rune,
+    chars: [dynamic]Character_Info,
     x, y: i32,
+}
+
+Character_Info :: struct {
+    char: rune,
+    glyph: ^Glyph
 }
 
 Cursor :: struct {
@@ -42,8 +47,8 @@ editor_draw_text :: proc(editor: ^Editor) {
     baseline : i32 = 0
 
     for line, i in editor.lines {
-        for character in line.chars {
-            code_point := int(character)
+        for character_info in line.chars {
+            code_point := int(character_info.char)
             glyph := get_glyph_from_atlas(editor.glyph_atlas, code_point)
 
             if glyph == nil {
@@ -65,6 +70,7 @@ editor_draw_text :: proc(editor: ^Editor) {
     }
 }
 
+// @todo: keep cursor column same if possible
 editor_move_cursor_up :: proc(editor: ^Editor, override_col := false) {
     if editor.cursor.line_index == 0 {
         return
@@ -73,12 +79,14 @@ editor_move_cursor_up :: proc(editor: ^Editor, override_col := false) {
     editor.cursor.line_index -= 1
     editor.cursor.y -= editor.line_height
 
+    // @hack
     if !override_col {
         editor.cursor.col_index = 0
         editor.cursor.x = EDITOR_OFFSET_X
     }
 }
 
+// @todo: keep cursor column same if possible
 editor_move_cursor_down :: proc(editor: ^Editor) {
     if int(editor.cursor.line_index + 1) == len(editor.lines) {
         return
@@ -107,7 +115,7 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
         return
     }
 
-    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[editor.cursor.col_index]))
+    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[editor.cursor.col_index].char))
     editor.cursor.x += glyph.advance
     editor.cursor.col_index += 1
 }
@@ -124,8 +132,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
         editor.cursor.col_index = i32(len(line_above_current_line.chars))
         editor.cursor.x = EDITOR_OFFSET_X
         for c in line_above_current_line.chars {
-            g := get_glyph_from_atlas(editor.glyph_atlas, int(c))
-            editor.cursor.x += g.advance
+            editor.cursor.x += c.glyph.advance
         }
 
         if len(current_line.chars) > 0 {
@@ -149,7 +156,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
 editor_on_return :: proc(editor: ^Editor) {
     current_line := &editor.lines[editor.cursor.line_index]
     current_col := editor.cursor.col_index
-    chars_to_move: []rune
+    chars_to_move: []Character_Info
     defer {
         chars_to_move = nil
     }
@@ -160,7 +167,7 @@ editor_on_return :: proc(editor: ^Editor) {
     }
 
     if current_col > 0 {
-        data: [dynamic]rune
+        data: [dynamic]Character_Info
         chars_to_move = current_line.chars[current_col:]
         chars_to_keep := current_line.chars[:current_col]
         append(&data, ..chars_to_keep[:])
@@ -173,7 +180,7 @@ editor_on_return :: proc(editor: ^Editor) {
     editor.cursor.col_index = 0
     editor.cursor.x = EDITOR_OFFSET_X
 
-    line_chars : [dynamic]rune
+    line_chars : [dynamic]Character_Info
     if len(chars_to_move) > 0 {
         append(&line_chars, ..chars_to_move[:])
     }
@@ -188,9 +195,12 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
     editor.cursor.x += glyph.advance
 
-    character := rune(char)
+    character_info := Character_Info{
+        char = rune(char),
+        glyph = glyph
+    }
     line := &editor.lines[editor.cursor.line_index]
-    append_char_at(&line.chars, character, editor.cursor.col_index)
+    append_char_at(&line.chars, character_info, editor.cursor.col_index)
     editor.cursor.col_index += 1
 }
 
@@ -219,7 +229,7 @@ editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
 @(private = "file")
 get_glyph_by_cursor_pos :: proc(editor: ^Editor, line: i32, col: i32) -> ^Glyph {
     line := &editor.lines[line]
-    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[col]))
+    glyph := line.chars[col].glyph
     return glyph
 }
 
