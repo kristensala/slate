@@ -48,9 +48,7 @@ editor_draw_text :: proc(editor: ^Editor) {
 
     for line, i in editor.lines {
         for character_info in line.chars {
-            code_point := int(character_info.char)
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, code_point)
-
+            glyph := character_info.glyph
             if glyph == nil {
                 continue
             }
@@ -115,7 +113,7 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
         return
     }
 
-    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(line.chars[editor.cursor.col_index].char))
+    glyph := line.chars[editor.cursor.col_index].glyph
     editor.cursor.x += glyph.advance
     editor.cursor.col_index += 1
 }
@@ -217,6 +215,9 @@ editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32,
 
 editor_on_file_open :: proc(editor: ^Editor) {
     // @todo
+}
+
+editor_get_selection :: proc(editor: ^Editor) {
 }
 
 @(private = "file")
