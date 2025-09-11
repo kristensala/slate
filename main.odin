@@ -70,7 +70,7 @@ main :: proc() {
     editor_lines : [dynamic]Line
     defer delete(editor_lines)
 
-    line_chars : [dynamic]rune
+    line_chars : [dynamic]Character_Info
     defer delete(line_chars)
 
     append(&editor_lines, Line{
