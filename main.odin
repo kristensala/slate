@@ -7,8 +7,6 @@ import ttf "vendor:sdl2/ttf"
 
 /*
    TODO:
-   - show line numbers
-   - if pressing enter in the middle of the row, move text right from the cursor to the next line
    - when moving with arrows and reach either the end or the beginning of the line, move to the next/previous line
    - ability to open files
    - scroll (and render only the visible lines)
@@ -168,9 +166,6 @@ main :: proc() {
         if cursor_visible {
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, 30)
         }
-
-        // rect for line numbers
-        //draw_rect(renderer, sdl.Color{0, 0, 255, 255}, {0, 0}, 20, 1000)
 
         sdl.RenderPresent(renderer)
     }

@@ -215,7 +215,8 @@ editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32,
     sdl.RenderFillRect(renderer, &rect)
 }
 
-editor_on_file_open :: proc() {
+editor_on_file_open :: proc(editor: ^Editor) {
+    // @todo
 }
 
 @(private = "file")
