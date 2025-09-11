@@ -103,7 +103,7 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     }
 
     editor.cursor.col_index -= 1
-    glyph := get_glyph_by_cursor_pos(editor, editor.cursor.line_index, editor.cursor.col_index)
+    glyph := get_glyph_by_cursor_pos(editor)
     editor.cursor.x -= glyph.advance
 }
 
@@ -145,7 +145,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
     }
 
     editor.cursor.col_index -= 1
-    glyph_to_remove := get_glyph_by_cursor_pos(editor, editor.cursor.line_index, editor.cursor.col_index)
+    glyph_to_remove := get_glyph_by_cursor_pos(editor)
 
     line := &editor.lines[editor.cursor.line_index]
     ordered_remove(&line.chars, editor.cursor.col_index)
@@ -215,6 +215,9 @@ editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32,
     sdl.RenderFillRect(renderer, &rect)
 }
 
+editor_on_file_open :: proc() {
+}
+
 @(private = "file")
 editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
     line_nr := fmt.tprintf("%v", line_nr)
@@ -232,9 +235,9 @@ editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
 }
 
 @(private = "file")
-get_glyph_by_cursor_pos :: proc(editor: ^Editor, line: i32, col: i32) -> ^Glyph {
-    line := editor.lines[line]
-    glyph := line.chars[col].glyph
+get_glyph_by_cursor_pos :: proc(editor: ^Editor) -> ^Glyph {
+    line := editor.lines[editor.cursor.line_index]
+    glyph := line.chars[editor.cursor.col_index].glyph
     return glyph
 }
 
