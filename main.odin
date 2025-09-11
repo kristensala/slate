@@ -114,6 +114,10 @@ main :: proc() {
                 break
             case .KEYDOWN:
                 keycode := event.key.keysym.sym
+                if keycode == .TAB {
+                    editor_on_tab(&editor)
+                    break
+                }
                 if keycode == .RETURN {
                     editor_on_return(&editor)
                     break

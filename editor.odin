@@ -139,7 +139,6 @@ editor_on_backspace :: proc(editor: ^Editor) {
             append(&line_above_current_line.chars, ..current_line.chars[:])
         }
 
-
         ordered_remove(&editor.lines, editor.cursor.line_index)
         editor_move_cursor_up(editor, true)
         return
@@ -191,6 +190,12 @@ editor_on_return :: proc(editor: ^Editor) {
     }, editor.cursor.line_index)
 }
 
+editor_on_tab :: proc(editor: ^Editor) {
+    for _ in 0..<4 {
+        editor_on_text_input(editor, 32) // 32 is space
+    }
+}
+
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
     editor.cursor.x += glyph.advance
@@ -228,7 +233,7 @@ editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
 
 @(private = "file")
 get_glyph_by_cursor_pos :: proc(editor: ^Editor, line: i32, col: i32) -> ^Glyph {
-    line := &editor.lines[line]
+    line := editor.lines[line]
     glyph := line.chars[col].glyph
     return glyph
 }
