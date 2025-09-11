@@ -127,7 +127,6 @@ editor_on_backspace :: proc(editor: ^Editor) {
     editor.cursor.x -= glyph_to_remove.advance
 }
 
-// @todo: move text right from the cursor to the new line
 editor_on_return :: proc(editor: ^Editor) {
     current_line := &editor.lines[editor.cursor.line_index]
     current_col := editor.cursor.col_index
@@ -152,8 +151,6 @@ editor_on_return :: proc(editor: ^Editor) {
     editor.cursor.line_index += 1
     editor.cursor.y += editor.line_height
 
-    // @todo: cursor col needs to stay the same if possible,
-    // otherwise should be at the end of the line
     editor.cursor.col_index = 0
     editor.cursor.x = EDITOR_OFFSET_X
 
