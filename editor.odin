@@ -129,6 +129,26 @@ editor_on_backspace :: proc(editor: ^Editor) {
 
 // @todo: move text right from the cursor to the new line
 editor_on_return :: proc(editor: ^Editor) {
+    current_line := &editor.lines[editor.cursor.line_index]
+    current_col := editor.cursor.col_index
+    chars_to_move: []rune
+    defer {
+        chars_to_move = nil
+    }
+
+    if current_col == 0 {
+        chars_to_move = current_line.chars[current_col:]
+        clear(&current_line.chars)
+    }
+
+    if current_col > 0 {
+        data: [dynamic]rune
+        chars_to_move = current_line.chars[current_col:]
+        chars_to_keep := current_line.chars[:current_col]
+        append(&data, ..chars_to_keep[:])
+        current_line.chars = data
+    }
+
     editor.cursor.line_index += 1
     editor.cursor.y += editor.line_height
 
@@ -138,6 +158,9 @@ editor_on_return :: proc(editor: ^Editor) {
     editor.cursor.x = EDITOR_OFFSET_X
 
     line_chars : [dynamic]rune
+    if len(chars_to_move) > 0 {
+        append(&line_chars, ..chars_to_move[:])
+    }
     append_line_at(&editor.lines, Line{
         x = 0,
         y = editor.cursor.line_index,
