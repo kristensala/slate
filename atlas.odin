@@ -136,13 +136,15 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         }
     }
 
+    //sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "0")
     atlas.texture = sdl.CreateTextureFromSurface(renderer, atlas.surface)
     if atlas.texture == nil {
         fmt.eprintln("Could not create atlas' texture: ", sdl.GetError())
         return
     }
 
-    sdl.SetTextureBlendMode(atlas.texture, .BLEND)
+    // .ADD makes the smaller font look better
+    sdl.SetTextureBlendMode(atlas.texture, .ADD)
 
     // For debug purpouse
     //sdl.SaveBMP(atlas.surface, "test.bmp")

@@ -28,8 +28,8 @@ main :: proc() {
         "slate_editor",
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
-        1500,
         1000,
+        500,
         {},
     )
 
@@ -60,6 +60,8 @@ main :: proc() {
         return
     }
 
+    ttf.SetFontHinting(font, .LIGHT)
+
     defer ttf.CloseFont(font)
 
     atlas := Atlas{}
@@ -89,7 +91,8 @@ main :: proc() {
         line_height = atlas.font_line_skip
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/personal/click.sh")
+    editor_on_file_open(&editor, "/home/salakris/.zshrc")
+    editor_set_visible_lines(&editor, window)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
@@ -102,6 +105,7 @@ main :: proc() {
 
     // Main "game" loop
     running := true
+
     loop: for(running) {
         event : sdl.Event
         for sdl.PollEvent(&event) {
@@ -127,17 +131,17 @@ main :: proc() {
                     break
                 }
                 if keycode == .BACKSPACE {
-                    editor_on_backspace(&editor)
+                    editor_on_backspace(&editor, window)
                     break
                 }
 
                 if keycode == .UP {
-                    editor_move_cursor_up(&editor)
+                    editor_move_cursor_up(&editor, false, window)
                     break
                 }
 
                 if keycode == .DOWN {
-                    editor_move_cursor_down(&editor)
+                    editor_move_cursor_down(&editor, window)
                     break
                 }
 
@@ -170,7 +174,7 @@ main :: proc() {
         editor_draw_text(&editor)
 
         if cursor_visible {
-            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, 30)
+            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
         }
 
         sdl.RenderPresent(renderer)
@@ -178,5 +182,4 @@ main :: proc() {
 
     sdl.StopTextInput()
 }
-
 

@@ -6,7 +6,7 @@ import "core:strings"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
-@(private) EDITOR_FONT_SIZE :: 30
+@(private) EDITOR_FONT_SIZE :: 20
 EDITOR_GUTTER_OFFSET_X :: 10
 EDITOR_OFFSET_X :: EDITOR_GUTTER_OFFSET_X + 50
 EDITOR_CURSOR_OFFSET :: 8 // 8 lines
@@ -23,6 +23,8 @@ Editor :: struct {
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
     lines: [dynamic]Line,
+    lines_start: i32,
+    lines_end: i32,
     cursor: Cursor,
     line_height: i32,
     vim_mode_enabled: bool,
@@ -45,11 +47,20 @@ Cursor :: struct {
     x, y: i32 // pixel pos
 }
 
+Cursor_Move_Direction :: enum {
+    NONE,
+    UP,
+    DOWN
+}
+
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x : i32 = EDITOR_OFFSET_X
     baseline : i32 = 0
 
     for line, i in editor.lines {
+        if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
+            continue
+        }
         for character_info in line.chars {
             glyph := character_info.glyph
             if glyph == nil {
@@ -72,13 +83,16 @@ editor_draw_text :: proc(editor: ^Editor) {
 }
 
 // @todo: keep cursor column same if possible
-editor_move_cursor_up :: proc(editor: ^Editor, override_col := false) {
+editor_move_cursor_up :: proc(editor: ^Editor, override_col := false, window: ^sdl.Window) {
     if editor.cursor.line_index == 0 {
         return
     }
-
     editor.cursor.line_index -= 1
-    editor.cursor.y -= editor.line_height
+    editor_set_visible_lines(editor, window, .UP)
+
+    cursor_idx_in_view := get_cursor_index_in_visible_lines(editor^)
+    editor.cursor.y = cursor_idx_in_view * editor.line_height
+
 
     // @hack: if I want to move the cursor up,
     // but want to calculate the cursor x (horizontal) pos separately
@@ -89,13 +103,19 @@ editor_move_cursor_up :: proc(editor: ^Editor, override_col := false) {
 }
 
 // @todo: keep cursor column same if possible
-editor_move_cursor_down :: proc(editor: ^Editor) {
+editor_move_cursor_down :: proc(editor: ^Editor, window: ^sdl.Window) {
     if int(editor.cursor.line_index + 1) == len(editor.lines) {
         return
     }
+
     editor.cursor.line_index += 1
-    editor.cursor.col_index =0
-    editor.cursor.y += editor.line_height
+    editor.cursor.col_index = 0
+    editor_set_visible_lines(editor, window, .DOWN)
+
+    cursor_idx_in_view := get_cursor_index_in_visible_lines(editor^)
+    editor.cursor.y = cursor_idx_in_view * editor.line_height
+
+    // if cursor pos is on the last line do not add y
     editor.cursor.x = EDITOR_OFFSET_X
 }
 
@@ -122,7 +142,7 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
     editor.cursor.col_index += 1
 }
 
-editor_on_backspace :: proc(editor: ^Editor) {
+editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
     if editor.cursor.col_index == 0 {
         if editor.cursor.line_index == 0 {
             return
@@ -142,7 +162,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
         }
 
         ordered_remove(&editor.lines, editor.cursor.line_index)
-        editor_move_cursor_up(editor, true)
+        editor_move_cursor_up(editor, true, window)
         return
     }
 
@@ -285,4 +305,36 @@ get_glyph_by_cursor_pos :: proc(editor: ^Editor) -> ^Glyph {
     return glyph
 }
 
+@(private = "file")
+get_normalized_window_height :: proc(window: ^sdl.Window, editor_line_height: i32) -> i32 {
+    w, h: i32
+    sdl.GetWindowSize(window, &w, &h)
+
+    lines_count := h / editor_line_height
+    normalized_height := lines_count * editor_line_height
+    return normalized_height
+}
+
+@(private = "file")
+get_cursor_index_in_visible_lines :: proc(editor: Editor) -> i32 {
+    cursor_row_nr := editor.cursor.line_index
+    cursor_idx_in_visible_lines := cursor_row_nr - editor.lines_start
+    return cursor_idx_in_visible_lines
+}
+
+
+editor_set_visible_lines :: proc(editor: ^Editor, window: ^sdl.Window, move_dir: Cursor_Move_Direction = .NONE) {
+    w, h: i32
+    sdl.GetWindowSize(window, &w, &h)
+
+    max_visible_rows := h / editor.line_height
+    if editor.cursor.line_index >= max_visible_rows && move_dir == .DOWN {
+        editor.lines_start = editor.cursor.line_index + 1 - max_visible_rows
+    }
+
+    if editor.cursor.line_index < editor.lines_start {
+        editor.lines_start = editor.cursor.line_index
+    }
+    editor.lines_end = editor.lines_start + max_visible_rows
+}
 
