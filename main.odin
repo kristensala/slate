@@ -91,7 +91,7 @@ main :: proc() {
         line_height = atlas.font_line_skip
     }
 
-    editor_on_file_open(&editor, "/home/salakris/.zshrc")
+    //editor_on_file_open(&editor, "/home/salakris/.zshrc")
     editor_set_visible_lines(&editor, window)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
@@ -99,6 +99,10 @@ main :: proc() {
     cursor_visible := true
     blink_interval : i32 = 400
     next_blink := sdl.GetTicks() + u32(blink_interval)
+
+    start_time := sdl.GetTicks()
+    frame_count := 0
+    fps: u32 = 0.0
 
     sdl.StartTextInput()
     //sdl.SetTextInputRect(&editor.text_input_rect)
@@ -127,7 +131,7 @@ main :: proc() {
                     break
                 }
                 if keycode == .RETURN {
-                    editor_on_return(&editor)
+                    editor_on_return(&editor, window)
                     break
                 }
                 if keycode == .BACKSPACE {
@@ -178,6 +182,19 @@ main :: proc() {
         }
 
         sdl.RenderPresent(renderer)
+
+        // show FPS in window title
+        frame_count += 1;
+        current_time := sdl.GetTicks();
+        if current_time - start_time >= 1000 { // 1 second passed
+            fps = u32(frame_count * 1000) / (current_time - start_time)
+            fps_str := fmt.tprintf("slate_editor; FPS: %v", fps)
+            fps_cstring := strings.clone_to_cstring(fps_str)
+            defer delete(fps_cstring)
+            sdl.SetWindowTitle(window, fps_cstring)
+            frame_count = 0;
+            start_time = current_time;
+        }
     }
 
     sdl.StopTextInput()

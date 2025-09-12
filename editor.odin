@@ -174,7 +174,7 @@ editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
     editor.cursor.x -= glyph_to_remove.advance
 }
 
-editor_on_return :: proc(editor: ^Editor) {
+editor_on_return :: proc(editor: ^Editor, window: ^sdl.Window) {
     current_line := &editor.lines[editor.cursor.line_index]
     current_col := editor.cursor.col_index
     chars_to_move: []Character_Info
@@ -196,15 +196,21 @@ editor_on_return :: proc(editor: ^Editor) {
     }
 
     editor.cursor.line_index += 1
-    editor.cursor.y += editor.line_height
 
     editor.cursor.col_index = 0
     editor.cursor.x = EDITOR_OFFSET_X
+
+    editor_set_visible_lines(editor, window, .DOWN)
+
+    cursor_pos_idx_in_view := get_cursor_index_in_visible_lines(editor^)
+    editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
 
     line_chars : [dynamic]Character_Info
     if len(chars_to_move) > 0 {
         append(&line_chars, ..chars_to_move[:])
     }
+
+
     append_line_at(&editor.lines, Line{
         x = 0,
         y = editor.cursor.line_index,
@@ -322,13 +328,14 @@ get_cursor_index_in_visible_lines :: proc(editor: Editor) -> i32 {
     return cursor_idx_in_visible_lines
 }
 
-
 editor_set_visible_lines :: proc(editor: ^Editor, window: ^sdl.Window, move_dir: Cursor_Move_Direction = .NONE) {
     w, h: i32
     sdl.GetWindowSize(window, &w, &h)
 
     max_visible_rows := h / editor.line_height
-    if editor.cursor.line_index >= max_visible_rows && move_dir == .DOWN {
+
+    cursor_idx_in_visible_lines := get_cursor_index_in_visible_lines(editor^)
+    if cursor_idx_in_visible_lines >= max_visible_rows && move_dir == .DOWN {
         editor.lines_start = editor.cursor.line_index + 1 - max_visible_rows
     }
 
