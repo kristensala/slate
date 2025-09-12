@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:strings"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
@@ -8,6 +9,7 @@ import ttf "vendor:sdl2/ttf"
 @(private) EDITOR_FONT_SIZE :: 30
 EDITOR_GUTTER_OFFSET_X :: 10
 EDITOR_OFFSET_X :: EDITOR_GUTTER_OFFSET_X + 50
+EDITOR_CURSOR_OFFSET :: 8 // 8 lines
 
 Vim_Mode :: enum {
     Normal,
@@ -16,6 +18,7 @@ Vim_Mode :: enum {
 }
 
 Editor :: struct {
+    text_input_rect: sdl.Rect,
     renderer: ^sdl.Renderer,
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
@@ -33,7 +36,7 @@ Line :: struct {
 
 Character_Info :: struct {
     char: rune,
-    glyph: ^Glyph
+    glyph: ^Glyph // @fix: does this have to be a pointer?
 }
 
 Cursor :: struct {
@@ -77,7 +80,8 @@ editor_move_cursor_up :: proc(editor: ^Editor, override_col := false) {
     editor.cursor.line_index -= 1
     editor.cursor.y -= editor.line_height
 
-    // @hack
+    // @hack: if I want to move the cursor up,
+    // but want to calculate the cursor x (horizontal) pos separately
     if !override_col {
         editor.cursor.col_index = 0
         editor.cursor.x = EDITOR_OFFSET_X
@@ -207,19 +211,57 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.col_index += 1
 }
 
+editor_on_command :: proc() {
+}
+
 editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
     sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
     rect: sdl.Rect = {pos.x, pos.y, w, h};
     sdl.RenderFillRect(renderer, &rect)
 }
 
-editor_on_file_open :: proc(editor: ^Editor) {
-    // @todo
+editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
+    data, ok := os.read_entire_file_from_filename(file_name)
+    if !ok {
+        fmt.eprintln("Could not read the file")
+        return
+    }
+    defer delete(data)
+
+    it := string(data)
+    lines: [dynamic]Line
+    for line in strings.split_lines_iterator(&it) {
+        editor_line := Line{
+            chars = make([dynamic]Character_Info)
+        }
+        for character in line {
+            cp := int(character)
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, cp)
+
+            character_info := Character_Info{
+                char = character,
+                glyph = glyph
+            }
+            append(&editor_line.chars, character_info)
+        }
+
+        append(&lines, editor_line)
+    }
+
+    clear(&editor.lines)
+    append(&editor.lines, ..lines[:])
 }
 
-editor_get_selection :: proc(editor: ^Editor) {
+@(private = "file")
+editor_get_visible_lines :: proc(editor: ^Editor) {
+    // @todo: get visible lines and only draw them
+    // window height / editor.line_height = max_visible_lines
+    // how to get the start and end lines?
+    // cursor pos > max_visible_lines then start++ and end = start + max_visible_lines
 }
 
+// @fix: also use an atlas for this
+// line_nr should be a rune then ex: "1"
 @(private = "file")
 editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
     line_nr := fmt.tprintf("%v", line_nr)

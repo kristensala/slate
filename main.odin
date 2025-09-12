@@ -28,7 +28,7 @@ main :: proc() {
         "slate_editor",
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
-        1000,
+        1500,
         1000,
         {},
     )
@@ -66,10 +66,7 @@ main :: proc() {
     build_atlas(renderer, font, &atlas)
 
     editor_lines : [dynamic]Line
-    defer delete(editor_lines)
-
     line_chars : [dynamic]Character_Info
-    defer delete(line_chars)
 
     append(&editor_lines, Line{
         x = 0,
@@ -78,6 +75,7 @@ main :: proc() {
     })
 
     editor := Editor{
+        text_input_rect = sdl.Rect{0, 0, 100, 100},
         renderer = renderer,
         font = font,
         lines = editor_lines,
@@ -91,11 +89,16 @@ main :: proc() {
         line_height = atlas.font_line_skip
     }
 
+    editor_on_file_open(&editor, "/home/salakris/Documents/personal/click.sh")
+
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
     cursor_visible := true
     blink_interval : i32 = 400
     next_blink := sdl.GetTicks() + u32(blink_interval)
+
+    sdl.StartTextInput()
+    //sdl.SetTextInputRect(&editor.text_input_rect)
 
     // Main "game" loop
     running := true
@@ -112,6 +115,9 @@ main :: proc() {
                 break
             case .KEYDOWN:
                 keycode := event.key.keysym.sym
+                if keycode == .F1 {
+                    break
+                }
                 if keycode == .TAB {
                     editor_on_tab(&editor)
                     break
@@ -169,6 +175,8 @@ main :: proc() {
 
         sdl.RenderPresent(renderer)
     }
+
+    sdl.StopTextInput()
 }
 
 
