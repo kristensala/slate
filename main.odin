@@ -80,7 +80,7 @@ main :: proc() {
         text_input_rect = sdl.Rect{0, 0, 100, 100},
         renderer = renderer,
         font = font,
-        lines = editor_lines,
+        lines = &editor_lines,
         glyph_atlas = &atlas,
         cursor = Cursor{
             line_index = 0,
@@ -91,7 +91,7 @@ main :: proc() {
         line_height = atlas.font_line_skip
     }
 
-    //editor_on_file_open(&editor, "/home/salakris/.zshrc")
+    editor_on_file_open(&editor, "/home/salakris/.zshrc")
     editor_set_visible_lines(&editor, window)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")

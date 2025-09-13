@@ -22,7 +22,7 @@ Editor :: struct {
     renderer: ^sdl.Renderer,
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
-    lines: [dynamic]Line,
+    lines: ^[dynamic]Line,
     lines_start: i32,
     lines_end: i32,
     cursor: Cursor,
@@ -43,7 +43,10 @@ Character_Info :: struct {
 
 Cursor :: struct {
     line_index: i32,
-    col_index: i32,
+    col_index: i32, // current col index
+
+    // update every time cursor is moved manually left or right
+    cached_col_index: i32,
     x, y: i32 // pixel pos
 }
 
@@ -119,6 +122,7 @@ editor_move_cursor_down :: proc(editor: ^Editor, window: ^sdl.Window) {
     editor.cursor.x = EDITOR_OFFSET_X
 }
 
+// @todo: horizontal scroll
 editor_move_cursor_left :: proc(editor: ^Editor) {
     if editor.cursor.col_index == 0 {
         return
@@ -129,6 +133,7 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     editor.cursor.x -= glyph.advance
 }
 
+// @todo: horizontal scroll
 editor_move_cursor_right :: proc(editor: ^Editor) {
     line := editor.lines[editor.cursor.line_index]
     char_count := i32(len(line.chars))
@@ -161,7 +166,7 @@ editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
             append(&line_above_current_line.chars, ..current_line.chars[:])
         }
 
-        ordered_remove(&editor.lines, editor.cursor.line_index)
+        ordered_remove(editor.lines, editor.cursor.line_index)
         editor_move_cursor_up(editor, true, window)
         return
     }
@@ -211,7 +216,7 @@ editor_on_return :: proc(editor: ^Editor, window: ^sdl.Window) {
     }
 
 
-    append_line_at(&editor.lines, Line{
+    append_line_at(editor.lines, Line{
         x = 0,
         y = editor.cursor.line_index,
         chars = line_chars
@@ -274,16 +279,8 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
         append(&lines, editor_line)
     }
 
-    clear(&editor.lines)
-    append(&editor.lines, ..lines[:])
-}
-
-@(private = "file")
-editor_get_visible_lines :: proc(editor: ^Editor) {
-    // @todo: get visible lines and only draw them
-    // window height / editor.line_height = max_visible_lines
-    // how to get the start and end lines?
-    // cursor pos > max_visible_lines then start++ and end = start + max_visible_lines
+    clear(editor.lines)
+    append(editor.lines, ..lines[:])
 }
 
 // @fix: also use an atlas for this
