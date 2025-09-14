@@ -6,27 +6,40 @@ import "core:strings"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
-@(private) EDITOR_FONT_SIZE :: 20
-EDITOR_GUTTER_OFFSET_X :: 10
-EDITOR_OFFSET_X :: EDITOR_GUTTER_OFFSET_X + 50
+@(private) EDITOR_FONT_SIZE :: 25
+EDITOR_GUTTER_WIDTH :: 70
+DEFAULT_EDITOR_OFFSET_X :: EDITOR_GUTTER_WIDTH + 10
 EDITOR_CURSOR_OFFSET :: 8 // 8 lines
 
 Vim_Mode :: enum {
-    Normal,
-    Visual,
-    Insert
+    NORMAL,
+    VISUAL,
+    INSERT
+}
+
+Viewport :: enum {
+    EDITOR,
+    COMMAND_LINE
 }
 
 Editor :: struct {
-    text_input_rect: sdl.Rect,
+    editor_gutter_clip: sdl.Rect,
+    editor_clip: sdl.Rect,
+    editor_offset_x: i32, // to track horizontal scrolling
+    command_clip: sdl.Rect,
+    active_viewport: Viewport,
+
     renderer: ^sdl.Renderer,
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
+
     lines: ^[dynamic]Line,
     lines_start: i32,
     lines_end: i32,
-    cursor: Cursor,
     line_height: i32,
+
+    cursor: Cursor,
+
     vim_mode_enabled: bool,
     vim_mode: Vim_Mode
 }
@@ -46,7 +59,7 @@ Cursor :: struct {
     col_index: i32, // current col index
 
     // update every time cursor is moved manually left or right
-    cached_col_index: i32,
+    memorized_col_index: i32,
     x, y: i32 // pixel pos
 }
 
@@ -57,7 +70,7 @@ Cursor_Move_Direction :: enum {
 }
 
 editor_draw_text :: proc(editor: ^Editor) {
-    pen_x : i32 = EDITOR_OFFSET_X
+    pen_x : i32 = editor.editor_offset_x
     baseline : i32 = 0
 
     for line, i in editor.lines {
@@ -78,10 +91,8 @@ editor_draw_text :: proc(editor: ^Editor) {
             pen_x += glyph.advance;
         }
 
-        editor_draw_line_nr(editor, i + 1, {EDITOR_GUTTER_OFFSET_X, baseline})
-
         baseline += editor.glyph_atlas.font_line_skip
-        pen_x = EDITOR_OFFSET_X
+        pen_x = editor.editor_offset_x
     }
 }
 
@@ -90,6 +101,9 @@ editor_move_cursor_up :: proc(editor: ^Editor, override_col := false, window: ^s
     if editor.cursor.line_index == 0 {
         return
     }
+    // @temp
+    editor.editor_offset_x = DEFAULT_EDITOR_OFFSET_X
+
     editor.cursor.line_index -= 1
     editor_set_visible_lines(editor, window, .UP)
 
@@ -101,7 +115,7 @@ editor_move_cursor_up :: proc(editor: ^Editor, override_col := false, window: ^s
     // but want to calculate the cursor x (horizontal) pos separately
     if !override_col {
         editor.cursor.col_index = 0
-        editor.cursor.x = EDITOR_OFFSET_X
+        editor.cursor.x = editor.editor_offset_x
     }
 }
 
@@ -111,6 +125,9 @@ editor_move_cursor_down :: proc(editor: ^Editor, window: ^sdl.Window) {
         return
     }
 
+    // @temp
+    editor.editor_offset_x = DEFAULT_EDITOR_OFFSET_X
+
     editor.cursor.line_index += 1
     editor.cursor.col_index = 0
     editor_set_visible_lines(editor, window, .DOWN)
@@ -119,7 +136,7 @@ editor_move_cursor_down :: proc(editor: ^Editor, window: ^sdl.Window) {
     editor.cursor.y = cursor_idx_in_view * editor.line_height
 
     // if cursor pos is on the last line do not add y
-    editor.cursor.x = EDITOR_OFFSET_X
+    editor.cursor.x = editor.editor_offset_x
 }
 
 // @todo: horizontal scroll
@@ -130,11 +147,16 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
 
     editor.cursor.col_index -= 1
     glyph := get_glyph_by_cursor_pos(editor)
-    editor.cursor.x -= glyph.advance
+
+    if editor.cursor.x - glyph.advance < DEFAULT_EDITOR_OFFSET_X {
+        editor.editor_offset_x += glyph.advance
+    } else {
+        editor.cursor.x -= glyph.advance
+    }
+
 }
 
-// @todo: horizontal scroll
-editor_move_cursor_right :: proc(editor: ^Editor) {
+editor_move_cursor_right :: proc(editor: ^Editor, window: ^sdl.Window) {
     line := editor.lines[editor.cursor.line_index]
     char_count := i32(len(line.chars))
 
@@ -143,8 +165,14 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
     }
 
     glyph := line.chars[editor.cursor.col_index].glyph
-    editor.cursor.x += glyph.advance
     editor.cursor.col_index += 1
+
+    right_bound := editor.editor_clip.x + editor.editor_clip.w
+    if editor.cursor.x + glyph.advance > right_bound {
+        editor.editor_offset_x -= glyph.advance
+    } else {
+        editor.cursor.x += glyph.advance
+    }
 }
 
 editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
@@ -157,7 +185,7 @@ editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
         line_above_current_line := &editor.lines[editor.cursor.line_index - 1]
 
         editor.cursor.col_index = i32(len(line_above_current_line.chars))
-        editor.cursor.x = EDITOR_OFFSET_X
+        editor.cursor.x = editor.editor_offset_x
         for c in line_above_current_line.chars {
             editor.cursor.x += c.glyph.advance
         }
@@ -180,6 +208,8 @@ editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
 }
 
 editor_on_return :: proc(editor: ^Editor, window: ^sdl.Window) {
+    editor.editor_offset_x = DEFAULT_EDITOR_OFFSET_X
+
     current_line := &editor.lines[editor.cursor.line_index]
     current_col := editor.cursor.col_index
     chars_to_move: []Character_Info
@@ -203,7 +233,7 @@ editor_on_return :: proc(editor: ^Editor, window: ^sdl.Window) {
     editor.cursor.line_index += 1
 
     editor.cursor.col_index = 0
-    editor.cursor.x = EDITOR_OFFSET_X
+    editor.cursor.x = editor.editor_offset_x
 
     editor_set_visible_lines(editor, window, .DOWN)
 
@@ -231,7 +261,13 @@ editor_on_tab :: proc(editor: ^Editor) {
 
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
-    editor.cursor.x += glyph.advance
+
+    right_bound := editor.editor_clip.x + editor.editor_clip.w
+    if editor.cursor.x + glyph.advance > right_bound {
+        editor.editor_offset_x -= glyph.advance
+    } else {
+        editor.cursor.x += glyph.advance
+    }
 
     character_info := Character_Info{
         char = rune(char),
@@ -240,6 +276,7 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     line := &editor.lines[editor.cursor.line_index]
     append_char_at(&line.chars, character_info, editor.cursor.col_index)
     editor.cursor.col_index += 1
+
 }
 
 editor_on_command :: proc() {
@@ -285,20 +322,24 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
 
 // @fix: also use an atlas for this
 // line_nr should be a rune then ex: "1"
-@(private = "file")
-editor_draw_line_nr :: proc(editor: ^Editor, line_nr: int, pos: [2]i32) {
-    line_nr := fmt.tprintf("%v", line_nr)
-    line_nr_cstring := strings.clone_to_cstring(line_nr)
-    defer delete(line_nr_cstring)
+editor_draw_line_nr :: proc(editor: ^Editor) {
+    line_skip: i32 = 0
+    for i in editor.lines_start..<editor.lines_end {
+        line_nr := fmt.tprintf("%v", i + 1)
+        line_nr_cstring := strings.clone_to_cstring(line_nr)
+        defer delete(line_nr_cstring)
 
-    surface := ttf.RenderUTF8_Blended(editor.font, line_nr_cstring, {255, 255, 255, 50})
-    defer sdl.FreeSurface(surface)
+        surface := ttf.RenderUTF8_Blended(editor.font, line_nr_cstring, {255, 255, 255, 50})
+        defer sdl.FreeSurface(surface)
 
-    tex := sdl.CreateTextureFromSurface(editor.renderer, surface)
-    defer sdl.DestroyTexture(tex)
+        tex := sdl.CreateTextureFromSurface(editor.renderer, surface)
+        defer sdl.DestroyTexture(tex)
 
-    rect : sdl.Rect = {pos.x, pos.y, surface.w, surface.h}
-    sdl.RenderCopy(editor.renderer, tex, nil, &rect)
+        rect : sdl.Rect = {0, line_skip, surface.w, surface.h}
+        sdl.RenderCopy(editor.renderer, tex, nil, &rect)
+
+        line_skip += editor.glyph_atlas.font_line_skip
+    }
 }
 
 @(private = "file")
@@ -340,5 +381,8 @@ editor_set_visible_lines :: proc(editor: ^Editor, window: ^sdl.Window, move_dir:
         editor.lines_start = editor.cursor.line_index
     }
     editor.lines_end = editor.lines_start + max_visible_rows
+    if editor.lines_end > i32(len(editor.lines)) {
+        editor.lines_end = i32(len(editor.lines))
+    }
 }
 

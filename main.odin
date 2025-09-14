@@ -29,7 +29,7 @@ main :: proc() {
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
         1000,
-        500,
+        800,
         {},
     )
 
@@ -37,8 +37,10 @@ main :: proc() {
         fmt.eprintln("Failed to create the window")
         return
     }
-
     defer sdl.DestroyWindow(window)
+
+    window_width, window_height : i32
+    sdl.GetWindowSize(window, &window_width, &window_height)
 
     renderer := sdl.CreateRenderer(window, -1, {.SOFTWARE})
     if renderer == nil {
@@ -77,7 +79,9 @@ main :: proc() {
     })
 
     editor := Editor{
-        text_input_rect = sdl.Rect{0, 0, 100, 100},
+        editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
+        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height},
+        editor_offset_x = DEFAULT_EDITOR_OFFSET_X,
         renderer = renderer,
         font = font,
         lines = &editor_lines,
@@ -85,7 +89,7 @@ main :: proc() {
         cursor = Cursor{
             line_index = 0,
             col_index = 0,
-            x = EDITOR_OFFSET_X,
+            x = DEFAULT_EDITOR_OFFSET_X,
             y = 0
         },
         line_height = atlas.font_line_skip
@@ -104,6 +108,8 @@ main :: proc() {
     frame_count := 0
     fps: u32 = 0.0
 
+    command_line_open := false
+
     sdl.StartTextInput()
     //sdl.SetTextInputRect(&editor.text_input_rect)
 
@@ -114,6 +120,14 @@ main :: proc() {
         event : sdl.Event
         for sdl.PollEvent(&event) {
             #partial switch event.type {
+            case .WINDOWEVENT:
+                if event.window.event == .RESIZED {
+                    sdl.GetWindowSize(window, &window_width, &window_height)
+                    editor.editor_clip.h = window_height
+                    editor.editor_clip.w = window_width
+                    editor.editor_gutter_clip.h = window_height
+                }
+                break
             case .QUIT:
                 running = false
                 break loop
@@ -124,6 +138,7 @@ main :: proc() {
             case .KEYDOWN:
                 keycode := event.key.keysym.sym
                 if keycode == .F1 {
+                    command_line_open = !command_line_open
                     break
                 }
                 if keycode == .TAB {
@@ -155,11 +170,10 @@ main :: proc() {
                 }
 
                 if keycode == .RIGHT {
-                    editor_move_cursor_right(&editor)
+                    editor_move_cursor_right(&editor, window)
                     break
                 }
                 break
-
             }
         }
 
@@ -175,10 +189,23 @@ main :: proc() {
         // Drawing should be done between RenderClear and RenderPresent
         sdl.RenderClear(renderer)
 
+        // editor clip
+        sdl.RenderSetClipRect(renderer, &editor.editor_clip)
         editor_draw_text(&editor)
 
         if cursor_visible {
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
+        }
+        sdl.RenderSetClipRect(renderer, nil)
+
+        // gutter clip
+        sdl.RenderSetClipRect(renderer, &editor.editor_gutter_clip)
+        editor_draw_line_nr(&editor)
+        sdl.RenderSetClipRect(renderer, nil)
+
+
+        if command_line_open {
+            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - 25}, window_width, 25)
         }
 
         sdl.RenderPresent(renderer)
