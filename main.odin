@@ -194,6 +194,7 @@ main :: proc() {
         editor_draw_text(&editor)
 
         if cursor_visible {
+            assert(editor.cursor.x >= DEFAULT_EDITOR_OFFSET_X, "Cursor is off screen")
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
         }
         sdl.RenderSetClipRect(renderer, nil)
@@ -202,7 +203,6 @@ main :: proc() {
         sdl.RenderSetClipRect(renderer, &editor.editor_gutter_clip)
         editor_draw_line_nr(&editor)
         sdl.RenderSetClipRect(renderer, nil)
-
 
         if command_line_open {
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - 25}, window_width, 25)
