@@ -194,7 +194,7 @@ main :: proc() {
         editor_draw_text(&editor)
 
         if cursor_visible {
-            assert(editor.cursor.x >= DEFAULT_EDITOR_OFFSET_X, "Cursor is off screen")
+            assert(editor.cursor.x >= editor.editor_offset_x, "Cursor is off editor on x axis, left side of the editor")
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
         }
         sdl.RenderSetClipRect(renderer, nil)
