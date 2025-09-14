@@ -87,12 +87,13 @@ main :: proc() {
         lines = &editor_lines,
         glyph_atlas = &atlas,
         cursor = Cursor{
+            memorized_col_index = 0,
             line_index = 0,
             col_index = 0,
             x = DEFAULT_EDITOR_OFFSET_X,
             y = 0
         },
-        line_height = atlas.font_line_skip
+        line_height = atlas.font_line_skip,
     }
 
     editor_on_file_open(&editor, "/home/salakris/.zshrc")
@@ -111,11 +112,9 @@ main :: proc() {
     command_line_open := false
 
     sdl.StartTextInput()
-    //sdl.SetTextInputRect(&editor.text_input_rect)
 
     // Main "game" loop
     running := true
-
     loop: for(running) {
         event : sdl.Event
         for sdl.PollEvent(&event) {
@@ -191,6 +190,7 @@ main :: proc() {
 
         // editor clip
         sdl.RenderSetClipRect(renderer, &editor.editor_clip)
+        assert(editor.editor_offset_x <= DEFAULT_EDITOR_OFFSET_X, "Editor offset should never be bigger than the default value")
         editor_draw_text(&editor)
 
         if cursor_visible {
@@ -205,7 +205,7 @@ main :: proc() {
         sdl.RenderSetClipRect(renderer, nil)
 
         if command_line_open {
-            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - 25}, window_width, 25)
+            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
         }
 
         sdl.RenderPresent(renderer)
