@@ -26,8 +26,8 @@ main :: proc() {
         "slate_editor",
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
+        1500,
         1000,
-        800,
         {},
     )
 
@@ -92,6 +92,8 @@ main :: proc() {
             y = 0
         },
         line_height = atlas.font_line_skip,
+        vim_mode_enabled = true,
+        vim_mode = .NORMAL
     }
 
     editor_on_file_open(&editor, "/home/salakris/.zshrc")
@@ -100,7 +102,7 @@ main :: proc() {
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
     cursor_visible := true
-    blink_interval : i32 = 400
+    blink_interval : i32 = 500
     next_blink := sdl.GetTicks() + u32(blink_interval)
 
     start_time := sdl.GetTicks()
@@ -130,9 +132,21 @@ main :: proc() {
                 break loop
             case .TEXTINPUT:
                 input := int(event.text.text[0])
-                editor_on_text_input(&editor, input)
+
+                if editor.vim_mode_enabled && editor.vim_mode == .NORMAL {
+                    editor_vim_mode_normal_shortcuts(input, &editor, window)
+                } else {
+                    editor_on_text_input(&editor, input)
+                }
+
+                // cancel cursor blinking while typing
+                cursor_visible = true
+                next_blink = sdl.GetTicks() + u32(blink_interval)
                 break
             case .KEYDOWN:
+                cursor_visible = true
+                next_blink = sdl.GetTicks() + u32(blink_interval)
+
                 keycode := event.key.keysym.sym
                 if keycode == .F1 {
                     command_line_open = !command_line_open
@@ -169,6 +183,12 @@ main :: proc() {
                 if keycode == .RIGHT {
                     editor_move_cursor_right(&editor, window)
                     break
+                }
+
+                if keycode == .ESCAPE {
+                    if editor.vim_mode_enabled && editor.vim_mode == .INSERT {
+                        editor.vim_mode = .NORMAL
+                    }
                 }
                 break
             }

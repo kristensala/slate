@@ -464,3 +464,60 @@ editor_get_current_line_width :: proc(editor: ^Editor) -> i32 {
     }
     return result;
 }
+
+editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor, window: ^sdl.Window) {
+    if input == int('j') {
+        editor_move_cursor_down(editor, window)
+    } else if input == int('k') {
+        editor_move_cursor_up(editor, window, .ARROW_KEYS)
+    } else if input == int('h') {
+        editor_move_cursor_left(editor)
+    } else if input == int('l') {
+        editor_move_cursor_right(editor, window)
+    } else if input == int('i') {
+        editor.vim_mode = .INSERT
+    } else if input == int('w') {
+        idx_to_move_to := editor.cursor.col_index
+        current_line_data := editor.lines[editor.cursor.line_index].chars
+        for data, idx in current_line_data {
+            if i32(idx) < editor.cursor.col_index {
+                continue
+            }
+            if data.char == rune(32) {
+                idx_to_move_to = i32(idx + 1)
+                break
+            }
+        }
+        editor_move_cursor_to(editor, editor.cursor.line_index, idx_to_move_to)
+    } else if input == int('b') {
+        idx_to_move_to : i32 = 0
+        current_line_data := editor.lines[editor.cursor.line_index].chars
+        #reverse for data, idx in current_line_data {
+            if i32(idx) > editor.cursor.col_index {
+                continue
+            }
+            if data.char == rune(32) {
+                if i32(idx) + 1 == editor.cursor.col_index {
+                    continue
+                }
+                idx_to_move_to = i32(idx + 1)
+                break
+            }
+        }
+        editor_move_cursor_to(editor, editor.cursor.line_index, idx_to_move_to)
+    }
+}
+
+// @todo: change offset if cursor is off the view
+editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move_to: i32) {
+    editor.cursor.line_index = line_to_move_to
+    editor.cursor.col_index = col_to_move_to
+    editor.cursor.x = calculate_cursor_pos_on_line(editor)
+    editor.cursor.memorized_col_index = col_to_move_to
+
+    // @todo:
+    //editor.editor_offset_x = 
+}
+
+editor_calculate_offset_x :: proc(editor: ^Editor) {
+}
