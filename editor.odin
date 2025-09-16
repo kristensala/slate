@@ -364,7 +364,6 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
     }
 }
 
-// @bug when the editor is offset
 calculate_cursor_pos_on_line :: proc(editor: ^Editor) -> i32 {
     cursor_pos_x : i32 = DEFAULT_EDITOR_OFFSET_X
     current_line := editor.lines[editor.cursor.line_index]
@@ -383,10 +382,8 @@ calculate_cursor_pos_on_line :: proc(editor: ^Editor) -> i32 {
         offset_diff = DEFAULT_EDITOR_OFFSET_X - editor.editor_offset_x
     }
 
-    // @todo: cursor pos x can be bigger than the editor clip (that is correct). It means that the line is going of the viewport.
-    // When it does happen, decrease the editor offset and set the max cursor pos x which will be current window_width
-    // Cursor x can not be bigger than window width, because then, the cursor is off the screen
-    return cursor_pos_x - offset_diff
+    result := cursor_pos_x - offset_diff
+    return result
 }
 
 @(private = "file")
@@ -433,7 +430,10 @@ editor_set_visible_lines :: proc(editor: ^Editor, window: ^sdl.Window, move_dir:
     }
 }
 
-// @fix: there is a bug somewhere here!!!!
+
+// @todo:
+// fix for when cursor goes
+// off the screen on lines which are long
 @(private = "file")
 retain_cursor_column :: proc(editor: ^Editor) {
     total_glyph_width : i32 = 0
