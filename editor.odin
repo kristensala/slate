@@ -123,14 +123,10 @@ editor_move_cursor_up :: proc(editor: ^Editor, window: ^sdl.Window, event: Curso
     }
 }
 
-// @todo: keep cursor column same if possible
 editor_move_cursor_down :: proc(editor: ^Editor, window: ^sdl.Window) {
     if int(editor.cursor.line_index + 1) == len(editor.lines) {
         return
     }
-
-    // @temp
-    //editor.editor_offset_x = DEFAULT_EDITOR_OFFSET_X
 
     editor.cursor.line_index += 1
     editor_set_visible_lines(editor, window, .DOWN)
