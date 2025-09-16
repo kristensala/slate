@@ -8,8 +8,6 @@ import ttf "vendor:sdl2/ttf"
 /*
    TODO:
    - when moving with arrows and reach either the end or the beginning of the line, move to the next/previous line
-   - ability to open files
-   - scroll (and render only the visible lines)
    - text selection(highlighting)
  */
 main :: proc() {
@@ -154,7 +152,7 @@ main :: proc() {
                 }
 
                 if keycode == .UP {
-                    editor_move_cursor_up(&editor, false, window)
+                    editor_move_cursor_up(&editor, window, .ARROW_KEYS)
                     break
                 }
 
