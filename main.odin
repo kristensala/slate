@@ -26,8 +26,8 @@ main :: proc() {
         "slate_editor",
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
-        1500,
-        1000,
+        800,
+        600,
         {},
     )
 
@@ -78,8 +78,8 @@ main :: proc() {
 
     editor := Editor{
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
-        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height},
-        editor_offset_x = DEFAULT_EDITOR_OFFSET_X,
+        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60},
+        editor_offset_x = EDITOR_GUTTER_WIDTH,
         renderer = renderer,
         font = font,
         lines = &editor_lines,
@@ -88,7 +88,7 @@ main :: proc() {
             memorized_col_index = 0,
             line_index = 0,
             col_index = 0,
-            x = DEFAULT_EDITOR_OFFSET_X,
+            x = EDITOR_GUTTER_WIDTH,
             y = 0
         },
         line_height = atlas.font_line_skip,
@@ -96,7 +96,7 @@ main :: proc() {
         vim_mode = .NORMAL
     }
 
-    editor_on_file_open(&editor, "/home/salakris/.zshrc")
+    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/slate/LICENSE")
     editor_set_visible_lines(&editor, window)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
@@ -208,11 +208,12 @@ main :: proc() {
 
         // editor clip
         sdl.RenderSetClipRect(renderer, &editor.editor_clip)
-        assert(editor.editor_offset_x <= DEFAULT_EDITOR_OFFSET_X, "Editor offset should never be bigger than the default value")
+        assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
         editor_draw_text(&editor)
 
         if cursor_visible {
             assert(editor.cursor.x >= editor.editor_offset_x, "Cursor is off editor on x axis, left side of the editor")
+            //assert(editor.cursor.x <= window_width, "Cursor is off the screen from right")
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
         }
         sdl.RenderSetClipRect(renderer, nil)
@@ -221,6 +222,9 @@ main :: proc() {
         sdl.RenderSetClipRect(renderer, &editor.editor_gutter_clip)
         editor_draw_line_nr(&editor)
         sdl.RenderSetClipRect(renderer, nil)
+
+        // draw statusline
+        editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
 
         if command_line_open {
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
