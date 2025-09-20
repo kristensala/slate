@@ -145,7 +145,7 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
 
     editor.cursor.col_index -= 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
-    editor_update_offset(editor)
+    editor_update_cursor_and_offset(editor)
 
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
 }
@@ -159,7 +159,7 @@ editor_move_cursor_right :: proc(editor: ^Editor, window: ^sdl.Window) {
 
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
-    editor_update_offset(editor)
+    editor_update_cursor_and_offset(editor)
 }
 
 editor_cursor_actual_x :: proc(editor: ^Editor) -> i32 {
@@ -430,7 +430,7 @@ retain_cursor_column :: proc(editor: ^Editor) {
     } else {
         editor.cursor.col_index = i32(len(current_line_data))
     }
-    editor_update_offset(editor)
+    editor_update_cursor_and_offset(editor)
 }
 
 editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor, window: ^sdl.Window) {
@@ -482,10 +482,10 @@ editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move
     editor.cursor.x = cursor_pos_x_in_view(editor)
     editor.cursor.memorized_col_index = col_to_move_to
 
-    editor_update_offset(editor)
+    editor_update_cursor_and_offset(editor)
 }
 
-editor_update_offset :: proc(editor: ^Editor) {
+editor_update_cursor_and_offset :: proc(editor: ^Editor) {
     left_bound := EDITOR_GUTTER_WIDTH
     right_bound := editor.cursor_right_side_cutoff_line
 
