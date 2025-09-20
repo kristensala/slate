@@ -114,12 +114,12 @@ editor_move_cursor_up :: proc(editor: ^Editor, event: Cursor_Move_Event) {
     }
 
     editor.cursor.line_index -= 1
-    editor_set_visible_lines(editor, .UP)
+    editor_get_visible_lines(editor, .UP)
 
-    cursor_idx_in_view := get_cursor_index_in_visible_lines(editor^)
+    cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_idx_in_view * editor.line_height
 
-    retain_cursor_column(editor)
+    editor_retain_cursor_column(editor)
 }
 
 editor_move_cursor_down :: proc(editor: ^Editor) {
@@ -128,12 +128,12 @@ editor_move_cursor_down :: proc(editor: ^Editor) {
     }
 
     editor.cursor.line_index += 1
-    editor_set_visible_lines(editor, .DOWN)
+    editor_get_visible_lines(editor, .DOWN)
 
-    cursor_idx_in_view := get_cursor_index_in_visible_lines(editor^)
+    cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_idx_in_view * editor.line_height
 
-    retain_cursor_column(editor)
+    editor_retain_cursor_column(editor)
 }
 
 editor_move_cursor_left :: proc(editor: ^Editor) {
@@ -160,16 +160,6 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_and_offset(editor)
-}
-
-editor_cursor_actual_x :: proc(editor: ^Editor) -> i32 {
-    current_line := editor.lines[editor.cursor.line_index]
-    pos_x: i32 = EDITOR_GUTTER_WIDTH;
-    for char_info, i in current_line.chars[:editor.cursor.col_index] {
-        pos_x += char_info.glyph.advance
-    }
-
-    return pos_x
 }
 
 editor_on_backspace :: proc(editor: ^Editor) { 
@@ -234,9 +224,9 @@ editor_on_return :: proc(editor: ^Editor) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor.cursor.x = editor.editor_offset_x
 
-    editor_set_visible_lines(editor, .DOWN)
+    editor_get_visible_lines(editor, .DOWN)
 
-    cursor_pos_idx_in_view := get_cursor_index_in_visible_lines(editor^)
+    cursor_pos_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
 
     line_chars : [dynamic]Character_Info
@@ -341,6 +331,8 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
     }
 }
 
+// Cursor pos within the bounds of the editor view
+@(private = "file")
 cursor_pos_x_in_view :: proc(editor: ^Editor) -> i32 {
     cursor_pos_x : i32 = EDITOR_GUTTER_WIDTH
     current_line := editor.lines[editor.cursor.line_index]
@@ -363,6 +355,21 @@ cursor_pos_x_in_view :: proc(editor: ^Editor) -> i32 {
     return result
 }
 
+// Cursor pos based where the cursor is on the line.
+// This value can be bigger than the bounds of the editor/window,
+// but the value should not be assigned to the cursor.x, this would
+// but the cursor off the screen
+@(private = "file")
+cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
+    current_line := editor.lines[editor.cursor.line_index]
+    pos_x: i32 = EDITOR_GUTTER_WIDTH;
+    for char_info, i in current_line.chars[:editor.cursor.col_index] {
+        pos_x += char_info.glyph.advance
+    }
+
+    return pos_x
+}
+
 @(private = "file")
 get_glyph_under_cursor :: proc(editor: ^Editor) -> ^Glyph {
     line := editor.lines[editor.cursor.line_index]
@@ -382,16 +389,16 @@ get_normalized_window_height :: proc(window: ^sdl.Window, editor_line_height: i3
 }
 
 @(private = "file")
-get_cursor_index_in_visible_lines :: proc(editor: Editor) -> i32 {
+get_cursor_line_index_in_visible_lines :: proc(editor: Editor) -> i32 {
     cursor_row_nr := editor.cursor.line_index
     cursor_idx_in_visible_lines := cursor_row_nr - editor.lines_start
     return cursor_idx_in_visible_lines
 }
 
-editor_set_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
+editor_get_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
     max_visible_rows := editor.editor_clip.h / editor.line_height
+    cursor_idx_in_visible_lines := get_cursor_line_index_in_visible_lines(editor^)
 
-    cursor_idx_in_visible_lines := get_cursor_index_in_visible_lines(editor^)
     if cursor_idx_in_visible_lines >= max_visible_rows && move_dir == .DOWN {
         editor.lines_start = editor.cursor.line_index + 1 - max_visible_rows
     }
@@ -399,17 +406,15 @@ editor_set_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Directio
     if editor.cursor.line_index < editor.lines_start {
         editor.lines_start = editor.cursor.line_index
     }
+
     editor.lines_end = editor.lines_start + max_visible_rows
     if editor.lines_end > i32(len(editor.lines)) {
         editor.lines_end = i32(len(editor.lines))
     }
 }
 
-// @todo:
-// fix for when cursor goes
-// off the screen on lines which are long
 @(private = "file")
-retain_cursor_column :: proc(editor: ^Editor) {
+editor_retain_cursor_column :: proc(editor: ^Editor) {
     total_glyph_width : i32 = 0
     current_line_data := editor.lines[editor.cursor.line_index].chars
 
@@ -444,7 +449,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
         editor_move_cursor_right(editor)
     } else if input == int('i') {
         editor.vim_mode = .INSERT
-    } else if input == int('w') { // @fix: if 2 spaces in a row
+    } else if input == int('w') { // @fix: if 2 spaces in a row and add symbol support
         idx_to_move_to := editor.cursor.col_index
         current_line_data := editor.lines[editor.cursor.line_index].chars
         for data, idx in current_line_data {
@@ -476,6 +481,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     }
 }
 
+@(private = "file")
 editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move_to: i32) {
     editor.cursor.line_index = line_to_move_to
     editor.cursor.col_index = col_to_move_to
@@ -485,11 +491,12 @@ editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move
     editor_update_cursor_and_offset(editor)
 }
 
+@(private = "file")
 editor_update_cursor_and_offset :: proc(editor: ^Editor) {
     left_bound := EDITOR_GUTTER_WIDTH
     right_bound := editor.cursor_right_side_cutoff_line
 
-    cursor_x_on_line := editor_cursor_actual_x(editor)
+    cursor_x_on_line := cursor_pos_x_on_line(editor)
 
     // reset offset and then recalculate
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
@@ -513,4 +520,8 @@ editor_update_cursor_and_offset :: proc(editor: ^Editor) {
     }
 
     editor.cursor.x = cursor_x_on_line
+
+    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH, "Cursor pos can not be smaller than the gutter width")
+    assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
+
 }

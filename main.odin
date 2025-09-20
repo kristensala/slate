@@ -21,8 +21,8 @@ main :: proc() {
         "slate_editor",
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
+        1500,
         1000,
-        800,
         {},
     )
 
@@ -93,7 +93,7 @@ main :: proc() {
     }
 
     editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
-    editor_set_visible_lines(&editor)
+    editor_get_visible_lines(&editor)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
