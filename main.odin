@@ -5,11 +5,6 @@ import "core:strings"
 import sdl "vendor:sdl2"
 import ttf "vendor:sdl2/ttf"
 
-/*
-   TODO:
-   - when moving with arrows and reach either the end or the beginning of the line, move to the next/previous line
-   - text selection(highlighting)
- */
 main :: proc() {
     /*
        @note: sdl.CreateWindow already calls sdl.Init if it
@@ -97,8 +92,8 @@ main :: proc() {
         vim_mode = .NORMAL
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/slate/LICENSE")
-    editor_set_visible_lines(&editor, window)
+    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    editor_set_visible_lines(&editor)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
@@ -135,7 +130,7 @@ main :: proc() {
                 input := int(event.text.text[0])
 
                 if editor.vim_mode_enabled && editor.vim_mode == .NORMAL {
-                    editor_vim_mode_normal_shortcuts(input, &editor, window)
+                    editor_vim_mode_normal_shortcuts(input, &editor)
                 } else {
                     editor_on_text_input(&editor, input)
                 }
@@ -158,21 +153,21 @@ main :: proc() {
                     break
                 }
                 if keycode == .RETURN {
-                    editor_on_return(&editor, window)
+                    editor_on_return(&editor)
                     break
                 }
                 if keycode == .BACKSPACE {
-                    editor_on_backspace(&editor, window)
+                    editor_on_backspace(&editor)
                     break
                 }
 
                 if keycode == .UP {
-                    editor_move_cursor_up(&editor, window, .ARROW_KEYS)
+                    editor_move_cursor_up(&editor, .ARROW_KEYS)
                     break
                 }
 
                 if keycode == .DOWN {
-                    editor_move_cursor_down(&editor, window)
+                    editor_move_cursor_down(&editor)
                     break
                 }
 
@@ -182,7 +177,7 @@ main :: proc() {
                 }
 
                 if keycode == .RIGHT {
-                    editor_move_cursor_right(&editor, window)
+                    editor_move_cursor_right(&editor)
                     break
                 }
 

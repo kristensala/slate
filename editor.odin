@@ -108,13 +108,13 @@ editor_draw_text :: proc(editor: ^Editor) {
     }
 }
 
-editor_move_cursor_up :: proc(editor: ^Editor, window: ^sdl.Window, event: Cursor_Move_Event) {
+editor_move_cursor_up :: proc(editor: ^Editor, event: Cursor_Move_Event) {
     if editor.cursor.line_index == 0 {
         return
     }
 
     editor.cursor.line_index -= 1
-    editor_set_visible_lines(editor, window, .UP)
+    editor_set_visible_lines(editor, .UP)
 
     cursor_idx_in_view := get_cursor_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_idx_in_view * editor.line_height
@@ -122,13 +122,13 @@ editor_move_cursor_up :: proc(editor: ^Editor, window: ^sdl.Window, event: Curso
     retain_cursor_column(editor)
 }
 
-editor_move_cursor_down :: proc(editor: ^Editor, window: ^sdl.Window) {
+editor_move_cursor_down :: proc(editor: ^Editor) {
     if int(editor.cursor.line_index + 1) == len(editor.lines) {
         return
     }
 
     editor.cursor.line_index += 1
-    editor_set_visible_lines(editor, window, .DOWN)
+    editor_set_visible_lines(editor, .DOWN)
 
     cursor_idx_in_view := get_cursor_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_idx_in_view * editor.line_height
@@ -150,7 +150,7 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
 }
 
-editor_move_cursor_right :: proc(editor: ^Editor, window: ^sdl.Window) {
+editor_move_cursor_right :: proc(editor: ^Editor) {
     line := editor.lines[editor.cursor.line_index]
     char_count := i32(len(line.chars))
     if char_count == 0 || char_count == editor.cursor.col_index {
@@ -172,7 +172,7 @@ editor_cursor_actual_x :: proc(editor: ^Editor) -> i32 {
     return pos_x
 }
 
-editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
+editor_on_backspace :: proc(editor: ^Editor) { 
     if editor.cursor.col_index == 0 {
         if editor.cursor.line_index == 0 {
             return
@@ -193,7 +193,7 @@ editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
         }
 
         ordered_remove(editor.lines, editor.cursor.line_index)
-        editor_move_cursor_up(editor, window, .BACKSPACE)
+        editor_move_cursor_up(editor, .BACKSPACE)
         return
     }
 
@@ -205,7 +205,7 @@ editor_on_backspace :: proc(editor: ^Editor, window: ^sdl.Window) {
     ordered_remove(&line.chars, editor.cursor.col_index)
 }
 
-editor_on_return :: proc(editor: ^Editor, window: ^sdl.Window) {
+editor_on_return :: proc(editor: ^Editor) { 
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 
     current_line := &editor.lines[editor.cursor.line_index]
@@ -234,7 +234,7 @@ editor_on_return :: proc(editor: ^Editor, window: ^sdl.Window) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor.cursor.x = editor.editor_offset_x
 
-    editor_set_visible_lines(editor, window, .DOWN)
+    editor_set_visible_lines(editor, .DOWN)
 
     cursor_pos_idx_in_view := get_cursor_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
@@ -388,7 +388,7 @@ get_cursor_index_in_visible_lines :: proc(editor: Editor) -> i32 {
     return cursor_idx_in_visible_lines
 }
 
-editor_set_visible_lines :: proc(editor: ^Editor, window: ^sdl.Window, move_dir: Cursor_Move_Direction = .NONE) {
+editor_set_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
     max_visible_rows := editor.editor_clip.h / editor.line_height
 
     cursor_idx_in_visible_lines := get_cursor_index_in_visible_lines(editor^)
@@ -433,15 +433,15 @@ retain_cursor_column :: proc(editor: ^Editor) {
     editor_update_cursor_and_offset(editor)
 }
 
-editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor, window: ^sdl.Window) {
+editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     if input == int('j') {
-        editor_move_cursor_down(editor, window)
+        editor_move_cursor_down(editor)
     } else if input == int('k') {
-        editor_move_cursor_up(editor, window, .ARROW_KEYS)
+        editor_move_cursor_up(editor, .ARROW_KEYS)
     } else if input == int('h') {
         editor_move_cursor_left(editor)
     } else if input == int('l') {
-        editor_move_cursor_right(editor, window)
+        editor_move_cursor_right(editor)
     } else if input == int('i') {
         editor.vim_mode = .INSERT
     } else if input == int('w') { // @fix: if 2 spaces in a row
