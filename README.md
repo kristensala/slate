@@ -3,9 +3,14 @@
 ![Demo](./assets/demo.gif)
 
 ## TODO
-- [x] Cache lines (mark lines dirty if they need to be rebuilt) (@note: if I'm using a glyph atlas, do I have to do this?)
-- [ ] Render only visible lines
-- [ ] Scrolling
-- [ ] Cursor
-- [ ] Delete text
-- [ ] Open and read files
+- [x] Render only visible lines
+- [x] Scrolling
+- [x] Cursor
+- [x] Delete text
+- [ ] migrate over to freetype (needs bindings - do yourself)
+- [ ] with freetype add some syntax highlighting
+- [ ] status line for vim mode (NORMAL, VISUAL, INSERT)
+- [ ] Editor settings changing support
+- [ ] Command line to open files and edit editor settings
+- [ ] add more vim motions (and fix the current ones)
+- [ ] Open and read files (partially done; currently no ability to open a file while running the program)

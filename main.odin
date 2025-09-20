@@ -26,8 +26,8 @@ main :: proc() {
         "slate_editor",
         sdl.WINDOWPOS_UNDEFINED,
         sdl.WINDOWPOS_UNDEFINED,
+        1000,
         800,
-        600,
         {},
     )
 
