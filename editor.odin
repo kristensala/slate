@@ -331,34 +331,10 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
     }
 }
 
-// Cursor pos within the bounds of the editor view
-@(private = "file")
-cursor_pos_x_in_view :: proc(editor: ^Editor) -> i32 {
-    cursor_pos_x : i32 = EDITOR_GUTTER_WIDTH
-    current_line := editor.lines[editor.cursor.line_index]
-    current_col_idx := editor.cursor.col_index
-
-    if current_col_idx == 0 {
-        return EDITOR_GUTTER_WIDTH
-    }
-
-    for char in current_line.chars[:current_col_idx] {
-        cursor_pos_x += char.glyph.advance
-    }
-
-    offset_diff : i32
-    if editor.editor_offset_x < EDITOR_GUTTER_WIDTH {
-        offset_diff = EDITOR_GUTTER_WIDTH - editor.editor_offset_x
-    }
-
-    result := cursor_pos_x - offset_diff
-    return result
-}
-
 // Cursor pos based where the cursor is on the line.
 // This value can be bigger than the bounds of the editor/window,
 // but the value should not be assigned to the cursor.x, this would
-// but the cursor off the screen
+// put the cursor off the screen
 @(private = "file")
 cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
     current_line := editor.lines[editor.cursor.line_index]
@@ -485,7 +461,6 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
 editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move_to: i32) {
     editor.cursor.line_index = line_to_move_to
     editor.cursor.col_index = col_to_move_to
-    editor.cursor.x = cursor_pos_x_in_view(editor)
     editor.cursor.memorized_col_index = col_to_move_to
 
     editor_update_cursor_and_offset(editor)
@@ -523,5 +498,5 @@ editor_update_cursor_and_offset :: proc(editor: ^Editor) {
 
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH, "Cursor pos can not be smaller than the gutter width")
     assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
-
 }
+
