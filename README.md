@@ -2,7 +2,7 @@
 ## Current state of the editor
 ![Demo](./assets/demo.gif)
 
-## TODO
+## Roadmap
 - [x] Render only visible lines
 - [x] Scrolling
 - [x] Cursor
