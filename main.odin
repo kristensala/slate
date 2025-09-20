@@ -80,6 +80,7 @@ main :: proc() {
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
         editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60},
         editor_offset_x = EDITOR_GUTTER_WIDTH,
+        cursor_right_side_cutoff_line = window_width - EDITOR_RIGHT_SIDE_CUTOFF,
         renderer = renderer,
         font = font,
         lines = &editor_lines,
