@@ -1,3 +1,6 @@
+/*
+   These bindings are taken from the repo: https://github.com/englerj/odin-freetype/blob/main/freetype.odin
+ */
 package freetype
 
 import "core:c"
