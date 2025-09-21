@@ -13,6 +13,7 @@ EDITOR_RIGHT_SIDE_CUTOFF :: 10
 //EDITOR_CURSOR_OFFSET :: 8 // 8 lines
 
 COMMAND_LINE_HEIGHT :: 25
+SPACE_ASCII_CODE :: 32
 
 Cursor_Move_Event :: enum {
     ARROW_KEYS,
@@ -243,7 +244,7 @@ editor_on_return :: proc(editor: ^Editor) {
 
 editor_on_tab :: proc(editor: ^Editor) {
     for _ in 0..<4 {
-        editor_on_text_input(editor, 32) // 32 is space
+        editor_on_text_input(editor, SPACE_ASCII_CODE)
     }
 }
 
@@ -274,7 +275,7 @@ editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32,
 }
 
 editor_draw_status_line :: proc(renderer: ^sdl.Renderer) {
-
+    // @todo
 }
 
 editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
@@ -329,6 +330,10 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
 
         line_skip += editor.glyph_atlas.font_line_skip
     }
+}
+
+editor_jump_to_line :: proc(destination_line: i32) {
+    // @todo
 }
 
 // Cursor pos based where the cursor is on the line.
@@ -395,12 +400,12 @@ editor_retain_cursor_column :: proc(editor: ^Editor) {
     current_line_data := editor.lines[editor.cursor.line_index].chars
 
     if int(editor.cursor.memorized_col_index) >= len(current_line_data) {
-        for c in current_line_data {
-            total_glyph_width += c.glyph.advance
+        for char_info in current_line_data {
+            total_glyph_width += char_info.glyph.advance
         }
     } else {
-        for c in current_line_data[:editor.cursor.memorized_col_index] {
-            total_glyph_width += c.glyph.advance
+        for char_info in current_line_data[:editor.cursor.memorized_col_index] {
+            total_glyph_width += char_info.glyph.advance
         }
     }
 
@@ -425,7 +430,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
         editor_move_cursor_right(editor)
     } else if input == int('i') {
         editor.vim_mode = .INSERT
-    } else if input == int('w') { // @fix: if 2 spaces in a row and add symbol support
+    } else if input == int('w') { // @fix: if 2 spaces in a row and add symbol support.
         idx_to_move_to := editor.cursor.col_index
         current_line_data := editor.lines[editor.cursor.line_index].chars
         for data, idx in current_line_data {
