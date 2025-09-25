@@ -3,6 +3,7 @@
 ![Demo](./assets/demo.gif)
 
 ## Roadmap
+- [ ] Migrate from SDL2 to SDL3
 - [x] Render only visible lines
 - [x] Scrolling
 - [x] Cursor
