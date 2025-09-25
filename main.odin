@@ -2,8 +2,9 @@ package main
 
 import "core:fmt"
 import "core:strings"
-import sdl "vendor:sdl2"
-import ttf "vendor:sdl2/ttf"
+import sdl "vendor:sdl3"
+import ttf "vendor:sdl3/ttf"
+import xlib "vendor:x11/xlib"
 
 main :: proc() {
     /*
@@ -11,7 +12,7 @@ main :: proc() {
        is not called, but it is still a good practice
        to call sdl.Init beforehand
      */
-    if sdl.Init({.VIDEO}) != 0 {
+    if !sdl.Init({.VIDEO}) {
         fmt.eprintln("sdl.Init failed: ", sdl.GetError())
         return
     }
@@ -19,8 +20,6 @@ main :: proc() {
 
     window := sdl.CreateWindow(
         "slate_editor",
-        sdl.WINDOWPOS_UNDEFINED,
-        sdl.WINDOWPOS_UNDEFINED,
         1500,
         1000,
         {},
@@ -35,15 +34,15 @@ main :: proc() {
     window_width, window_height : i32
     sdl.GetWindowSize(window, &window_width, &window_height)
 
-    renderer := sdl.CreateRenderer(window, -1, {.SOFTWARE})
+    renderer := sdl.CreateRenderer(window, nil)
     if renderer == nil {
         fmt.eprintln("Could not create a renderer: ", sdl.GetError())
         return
     }
     defer sdl.DestroyRenderer(renderer)
 
-    if ttf.Init() != 0 {
-        fmt.eprintln("Failed to initialize ttf library", ttf.GetError())
+    if !ttf.Init() {
+        fmt.eprintln("Failed to initialize ttf library", sdl.GetError())
         return
     }
 
@@ -51,7 +50,7 @@ main :: proc() {
 
     font := ttf.OpenFont("./fonts/IBMPlexMono-Regular.ttf", EDITOR_FONT_SIZE)
     if font == nil {
-        fmt.eprintln("Failed to load font: ", ttf.GetError())
+        fmt.eprintln("Failed to load font: ", sdl.GetError())
         return
     }
 
@@ -59,8 +58,25 @@ main :: proc() {
 
     defer ttf.CloseFont(font)
 
+    // ============= Freetype ================
+
+
+    display := xlib.OpenDisplay(nil)
+    defer xlib.CloseDisplay(display)
+
+    screen := xlib.DefaultScreen(display)
+    display_width := xlib.DisplayWidth(display, screen)
+    display_height := xlib.DisplayHeight(display, screen)
+    display_width_mm := xlib.DisplayWidthMM(display, screen)
+    display_height_mm := xlib.DisplayHeightMM(display, screen)
+
+    dpi_x := f32(display_width) * 25.4 / f32(display_width_mm)
+    dpi_y := f32(display_height) * 25.4 / f32(display_height_mm)
+
+    // ============= Freetype ================
+
     atlas := Atlas{}
-    build_atlas(renderer, font, &atlas)
+    //build_atlas(renderer, font, &atlas)
 
     editor_lines : [dynamic]Line
     line_chars : [dynamic]Character_Info
@@ -75,7 +91,7 @@ main :: proc() {
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
         editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60},
         editor_offset_x = EDITOR_GUTTER_WIDTH,
-        cursor_right_side_cutoff_line = window_width - EDITOR_RIGHT_SIDE_CUTOFF,
+        cursor_right_side_cutoff_line = f32(window_width) - EDITOR_RIGHT_SIDE_CUTOFF,
         renderer = renderer,
         font = font,
         lines = &editor_lines,
@@ -92,22 +108,26 @@ main :: proc() {
         vim_mode = .NORMAL
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    //editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
     editor_get_visible_lines(&editor)
 
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
     cursor_visible := true
     blink_interval : i32 = 500
-    next_blink := sdl.GetTicks() + u32(blink_interval)
+    next_blink := sdl.GetTicks() + u64(blink_interval)
 
     start_time := sdl.GetTicks()
     frame_count := 0
-    fps: u32 = 0.0
+    fps: u64 = 0.0
 
     command_line_open := false
 
-    sdl.StartTextInput()
+    started_text_input := sdl.StartTextInput(window)
+    if !started_text_input {
+        fmt.eprintln("Could not start text input")
+        return
+    }
 
     // Main "game" loop
     running := true
@@ -115,35 +135,34 @@ main :: proc() {
         event : sdl.Event
         for sdl.PollEvent(&event) {
             #partial switch event.type {
-            case .WINDOWEVENT:
-                if event.window.event == .RESIZED {
-                    sdl.GetWindowSize(window, &window_width, &window_height)
-                    editor.editor_clip.h = window_height
-                    editor.editor_clip.w = window_width
-                    editor.editor_gutter_clip.h = window_height
-                }
+            case .WINDOW_RESIZED:
+                sdl.GetWindowSize(window, &window_width, &window_height)
+                editor.editor_clip.h = window_height
+                editor.editor_clip.w = window_width
+                editor.editor_gutter_clip.h = window_height
                 break
             case .QUIT:
                 running = false
                 break loop
-            case .TEXTINPUT:
-                input := int(event.text.text[0])
+            case .TEXT_INPUT:
+                input := event.text.text
+                fmt.println(input)
 
                 if editor.vim_mode_enabled && editor.vim_mode == .NORMAL {
-                    editor_vim_mode_normal_shortcuts(input, &editor)
+                    //editor_vim_mode_normal_shortcuts(input, &editor)
                 } else {
-                    editor_on_text_input(&editor, input)
+                    //editor_on_text_input(&editor, input)
                 }
 
                 // cancel cursor blinking while typing
                 cursor_visible = true
-                next_blink = sdl.GetTicks() + u32(blink_interval)
+                next_blink = sdl.GetTicks() + u64(blink_interval)
                 break
-            case .KEYDOWN:
+            case .KEY_DOWN:
                 cursor_visible = true
-                next_blink = sdl.GetTicks() + u32(blink_interval)
+                next_blink = sdl.GetTicks() + u64(blink_interval)
 
-                keycode := event.key.keysym.sym
+                keycode := event.key.scancode
                 if keycode == .F1 {
                     command_line_open = !command_line_open
                     break
@@ -193,7 +212,7 @@ main :: proc() {
         current_tick := sdl.GetTicks()
         if current_tick >= next_blink {
             cursor_visible = !cursor_visible
-            next_blink += u32(blink_interval)
+            next_blink += u64(blink_interval)
         }
 
         // Set background color of the window
@@ -203,7 +222,7 @@ main :: proc() {
         sdl.RenderClear(renderer)
 
         // editor clip
-        sdl.RenderSetClipRect(renderer, &editor.editor_clip)
+        sdl.SetRenderClipRect(renderer, &editor.editor_clip)
         assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
         editor_draw_text(&editor)
 
@@ -212,19 +231,19 @@ main :: proc() {
             //assert(editor.cursor.x <= window_width, "Cursor is off the screen from right")
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
         }
-        sdl.RenderSetClipRect(renderer, nil)
+        sdl.SetRenderClipRect(renderer, nil)
 
         // gutter clip
-        sdl.RenderSetClipRect(renderer, &editor.editor_gutter_clip)
-        editor_draw_line_nr(&editor)
-        sdl.RenderSetClipRect(renderer, nil)
+        sdl.SetRenderClipRect(renderer, &editor.editor_gutter_clip)
+        //editor_draw_line_nr(&editor)
+        sdl.SetRenderClipRect(renderer, nil)
 
         // draw statusline
-        editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
+        //editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
 
-        if command_line_open {
+        /*if command_line_open {
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
-        }
+        }*/
 
         sdl.RenderPresent(renderer)
 
@@ -232,7 +251,7 @@ main :: proc() {
         frame_count += 1;
         current_time := sdl.GetTicks();
         if current_time - start_time >= 1000 { // 1 second passed
-            fps = u32(frame_count * 1000) / (current_time - start_time)
+            fps = u64(frame_count * 1000) / (current_time - start_time)
             fps_str := fmt.tprintf("slate_editor; FPS: %v", fps)
             fps_cstring := strings.clone_to_cstring(fps_str)
             defer delete(fps_cstring)
@@ -242,6 +261,10 @@ main :: proc() {
         }
     }
 
-    sdl.StopTextInput()
+    stop_text_input := sdl.StopTextInput(window)
+    if !stop_text_input {
+        fmt.eprintln("Could not stop text input")
+        return
+    }
 }
 

@@ -1,8 +1,9 @@
 package main
 
 import "core:fmt"
-import sdl "vendor:sdl2"
-import ttf "vendor:sdl2/ttf"
+import sdl "vendor:sdl3"
+import ttf "vendor:sdl3/ttf"
+import ft "freetype"
 
 @(private = "file") COLS :: 16
 @(private = "file") ROWS :: 10
@@ -12,45 +13,40 @@ import ttf "vendor:sdl2/ttf"
 @(private = "file") LAST_CODE_POINT :: 126 // ~ (tilde)
 @(private = "file") MAX_GLYPHS :: (LAST_CODE_POINT - FIRST_CODE_POINT + 1) // ASCII without control chars
 
-Vec2 :: struct {
-    x: f32,
-    y: f32
-}
-
 Atlas :: struct {
     texture: ^sdl.Texture,
     surface: ^sdl.Surface,
     height: i32,
     width: i32,
-    font_line_skip: i32, // vertical step for going to the next line of text.
+    font_line_skip: f32, // vertical step for going to the next line of text.
     font_ascent: i32,
     font_descent: i32,
     glyphs: map[int]Glyph
 }
 
 Glyph :: struct {
-    uv: sdl.Rect,
-    width, height: i32,
-    advance: i32, // how far to move the pen after drawing
-    bearing_x, bearing_y: i32, // bearingY: height above baseline (use ttf.GlyphMetrics32)
+    uv: sdl.FRect,
+    width, height: f32,
+    advance: f32, // how far to move the pen after drawing
+    bearing_x, bearing_y: f32, // bearingY: height above baseline (use ttf.GlyphMetrics32)
 }
 
-build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
-    atlas.font_line_skip = ttf.FontLineSkip(font)
-    atlas.font_ascent = ttf.FontAscent(font)
-    atlas.font_descent = ttf.FontDescent(font)
+/*build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
+    atlas.font_line_skip = ttf.GetFontLineSkip(font^)
+    atlas.font_ascent = ttf.GetFontAscent(font^)
+    atlas.font_descent = ttf.GetFontDescent(font^)
 
     max_w : i32 = 1
     max_h : i32 = 1
     for code_point in FIRST_CODE_POINT..=LAST_CODE_POINT {
         // Render glyph bitmap
-        surface := ttf.RenderGlyph32_Blended(font, rune(code_point), {255, 255, 255, 255})
+        surface := ttf.RenderGlyph_Blended(font, u32(code_point), {255, 255, 255, 255})
         if surface == nil {
             fmt.eprintln("No surface found: ", code_point)
             continue;
         }
 
-        defer sdl.FreeSurface(surface)
+        defer sdl.DestroySurface(surface)
 
         if ttf.GlyphIsProvided32(font, rune(code_point)) == 0 {
             fmt.eprintln("Glyph is not provided: ", ttf.GetError())
@@ -59,8 +55,8 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
 
         // Get metrics
         min_x, max_x, min_y, max_y, adv : i32;
-        if ttf.GlyphMetrics32(font, rune(code_point), &min_x, &max_x, &min_y, &max_y, &adv) != 0 {
-            fmt.eprintln("Could not get GlyphMetrics32: ", ttf.GetError())
+        if !ttf.GetGlyphMetrics(font, u32(code_point), &min_x, &max_x, &min_y, &max_y, &adv) {
+            fmt.eprintln("Could not get GlyphMetrics32: ", sdl.GetError())
             return
         }
 
@@ -81,7 +77,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
     atlas_w := COLS * cell_w
     atlas_h := ROWS * cell_h
 
-    pixel_format : sdl.PixelFormatEnum = .RGBA8888
+    pixel_format : sdl.PixelFormat = .RGBA8888
     atlas.surface = sdl.CreateRGBSurfaceWithFormat(0, atlas_w, atlas_h, 32, u32(pixel_format))
     if atlas.surface == nil {
         fmt.eprintln("Could not create atlas' surface: ", sdl.GetError())
@@ -147,8 +143,9 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
     sdl.SetTextureBlendMode(atlas.texture, .ADD)
 
     // For debug purpouse
-    //sdl.SaveBMP(atlas.surface, "test.bmp")
+    sdl.SaveBMP(atlas.surface, "test.bmp")
 }
+*/
 
 get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
     glyph := &atlas.glyphs[code_point]

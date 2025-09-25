@@ -4,8 +4,8 @@ import "core:fmt"
 import "core:os"
 import "core:math"
 import "core:strings"
-import sdl "vendor:sdl2"
-import ttf "vendor:sdl2/ttf"
+import sdl "vendor:sdl3"
+import ttf "vendor:sdl3/ttf"
 
 EDITOR_FONT_SIZE :: 25
 EDITOR_GUTTER_WIDTH :: 70
@@ -34,11 +34,11 @@ Viewport :: enum {
 Editor :: struct {
     editor_gutter_clip: sdl.Rect,
     editor_clip: sdl.Rect,
-    editor_offset_x: i32, // to track horizontal scrolling
+    editor_offset_x: f32, // to track horizontal scrolling
 
     // Do not allow for the cursor to go past this line.
     // Once the cursor gets here, decrease the editor offset_x
-    cursor_right_side_cutoff_line: i32, 
+    cursor_right_side_cutoff_line: f32, 
     command_clip: sdl.Rect,
     active_viewport: Viewport,
 
@@ -49,7 +49,7 @@ Editor :: struct {
     lines: ^[dynamic]Line,
     lines_start: i32,
     lines_end: i32,
-    line_height: i32,
+    line_height: f32,
 
     cursor: Cursor,
 
@@ -73,7 +73,7 @@ Cursor :: struct {
 
     // update every time cursor is moved manually left or right
     memorized_col_index: i32,
-    x, y: i32 // pixel pos
+    x, y: f32 // pixel pos
 }
 
 Cursor_Move_Direction :: enum {
@@ -83,8 +83,8 @@ Cursor_Move_Direction :: enum {
 }
 
 editor_draw_text :: proc(editor: ^Editor) {
-    pen_x : i32 = editor.editor_offset_x
-    baseline : i32 = 0
+    pen_x : f32 = editor.editor_offset_x
+    baseline : f32 = 0
 
     for line, i in editor.lines {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
@@ -98,9 +98,9 @@ editor_draw_text :: proc(editor: ^Editor) {
 
             glyph_x := pen_x + glyph.bearing_x
             glyph_y := baseline //- glyph.bearing_y
-            destination : sdl.Rect = {glyph_x, glyph_y, glyph.width, glyph.height}
+            destination : sdl.FRect = {glyph_x, glyph_y, glyph.width, glyph.height}
 
-            sdl.RenderCopy(editor.renderer, editor.glyph_atlas.texture, &glyph.uv, &destination)
+            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &glyph.uv, &destination)
             pen_x += glyph.advance;
         }
 
@@ -118,7 +118,7 @@ editor_move_cursor_up :: proc(editor: ^Editor, event: Cursor_Move_Event) {
     editor_get_visible_lines(editor, .UP)
 
     cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
-    editor.cursor.y = cursor_idx_in_view * editor.line_height
+    editor.cursor.y = f32(cursor_idx_in_view) * editor.line_height
 
     editor_retain_cursor_column(editor)
 }
@@ -132,7 +132,7 @@ editor_move_cursor_down :: proc(editor: ^Editor) {
     editor_get_visible_lines(editor, .DOWN)
 
     cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
-    editor.cursor.y = cursor_idx_in_view * editor.line_height
+    editor.cursor.y = f32(cursor_idx_in_view) * editor.line_height
 
     editor_retain_cursor_column(editor)
 }
@@ -228,7 +228,7 @@ editor_on_return :: proc(editor: ^Editor) {
     editor_get_visible_lines(editor, .DOWN)
 
     cursor_pos_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
-    editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
+    editor.cursor.y = f32(cursor_pos_idx_in_view) * editor.line_height
 
     line_chars : [dynamic]Character_Info
     if len(chars_to_move) > 0 {
@@ -251,7 +251,7 @@ editor_on_tab :: proc(editor: ^Editor) {
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
 
-    if editor.cursor.x + glyph.advance > editor.cursor_right_side_cutoff_line {
+    if editor.cursor.x + glyph.advance > f32(editor.cursor_right_side_cutoff_line) {
         editor.editor_offset_x -= glyph.advance
     } else {
         editor.cursor.x += glyph.advance
@@ -268,9 +268,9 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
 }
 
-editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
+editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]f32, w: f32, h: f32) {
     sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
-    rect: sdl.Rect = {pos.x, pos.y, w, h};
+    rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
     sdl.RenderFillRect(renderer, &rect)
 }
 
@@ -312,25 +312,25 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
 
 // @fix: also use an atlas for this
 // line_nr should be a rune then ex: "1"
-editor_draw_line_nr :: proc(editor: ^Editor) {
-    line_skip: i32 = 0
+/*editor_draw_line_nr :: proc(editor: ^Editor) {
+    line_skip: f32 = 0
     for i in editor.lines_start..<editor.lines_end {
         line_nr := fmt.tprintf("%v", i + 1)
         line_nr_cstring := strings.clone_to_cstring(line_nr)
         defer delete(line_nr_cstring)
 
         surface := ttf.RenderUTF8_Blended(editor.font, line_nr_cstring, {255, 255, 255, 50})
-        defer sdl.FreeSurface(surface)
+        defer sdl.DestroySurface(surface)
 
         tex := sdl.CreateTextureFromSurface(editor.renderer, surface)
         defer sdl.DestroyTexture(tex)
 
-        rect : sdl.Rect = {0, line_skip, surface.w, surface.h}
+        rect : sdl.FRect = {0, line_skip, surface.w, surface.h}
         sdl.RenderCopy(editor.renderer, tex, nil, &rect)
 
         line_skip += editor.glyph_atlas.font_line_skip
     }
-}
+}*/
 
 editor_jump_to_line :: proc(destination_line: i32) {
     // @todo
@@ -341,9 +341,9 @@ editor_jump_to_line :: proc(destination_line: i32) {
 // but the value should not be assigned to the cursor.x, this would
 // put the cursor off the screen
 @(private = "file")
-cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
+cursor_pos_x_on_line :: proc(editor: ^Editor) -> f32 {
     current_line := editor.lines[editor.cursor.line_index]
-    pos_x: i32 = EDITOR_GUTTER_WIDTH;
+    pos_x: f32 = EDITOR_GUTTER_WIDTH;
     for char_info, i in current_line.chars[:editor.cursor.col_index] {
         pos_x += char_info.glyph.advance
     }
@@ -377,18 +377,18 @@ get_cursor_line_index_in_visible_lines :: proc(editor: Editor) -> i32 {
 }
 
 editor_get_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
-    max_visible_rows := editor.editor_clip.h / editor.line_height
+    max_visible_rows := f32(editor.editor_clip.h) / editor.line_height
     cursor_idx_in_visible_lines := get_cursor_line_index_in_visible_lines(editor^)
 
-    if cursor_idx_in_visible_lines >= max_visible_rows && move_dir == .DOWN {
-        editor.lines_start = editor.cursor.line_index + 1 - max_visible_rows
+    if cursor_idx_in_visible_lines >= i32(max_visible_rows) && move_dir == .DOWN {
+        editor.lines_start = editor.cursor.line_index + 1 - i32(max_visible_rows)
     }
 
     if editor.cursor.line_index < editor.lines_start {
         editor.lines_start = editor.cursor.line_index
     }
 
-    editor.lines_end = editor.lines_start + max_visible_rows
+    editor.lines_end = editor.lines_start + i32(max_visible_rows)
     if editor.lines_end > i32(len(editor.lines)) {
         editor.lines_end = i32(len(editor.lines))
     }
@@ -396,7 +396,7 @@ editor_get_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Directio
 
 @(private = "file")
 editor_retain_cursor_column :: proc(editor: ^Editor) {
-    total_glyph_width : i32 = 0
+    total_glyph_width : f32 = 0
     current_line_data := editor.lines[editor.cursor.line_index].chars
 
     if int(editor.cursor.memorized_col_index) >= len(current_line_data) {

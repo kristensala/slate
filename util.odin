@@ -1,6 +1,6 @@
 package main
 
-import sdl "vendor:sdl2"
+import sdl "vendor:sdl3"
 
 append_line_at :: proc(editor_lines: ^[dynamic]Line, line: Line, index: i32) {
     result : [dynamic]Line
