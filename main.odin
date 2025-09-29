@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:strings"
+import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 import xlib "vendor:x11/xlib"
@@ -53,30 +54,12 @@ main :: proc() {
         fmt.eprintln("Failed to load font: ", sdl.GetError())
         return
     }
-
-    ttf.SetFontHinting(font, .LIGHT)
-
     defer ttf.CloseFont(font)
+    ttf.SetFontKerning(font, true)
 
-    // ============= Freetype ================
-
-
-    display := xlib.OpenDisplay(nil)
-    defer xlib.CloseDisplay(display)
-
-    screen := xlib.DefaultScreen(display)
-    display_width := xlib.DisplayWidth(display, screen)
-    display_height := xlib.DisplayHeight(display, screen)
-    display_width_mm := xlib.DisplayWidthMM(display, screen)
-    display_height_mm := xlib.DisplayHeightMM(display, screen)
-
-    dpi_x := f32(display_width) * 25.4 / f32(display_width_mm)
-    dpi_y := f32(display_height) * 25.4 / f32(display_height_mm)
-
-    // ============= Freetype ================
 
     atlas := Atlas{}
-    //build_atlas(renderer, font, &atlas)
+    build_atlas(renderer, font, &atlas)
 
     editor_lines : [dynamic]Line
     line_chars : [dynamic]Character_Info
@@ -91,7 +74,7 @@ main :: proc() {
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
         editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60},
         editor_offset_x = EDITOR_GUTTER_WIDTH,
-        cursor_right_side_cutoff_line = f32(window_width) - EDITOR_RIGHT_SIDE_CUTOFF,
+        cursor_right_side_cutoff_line = window_width - EDITOR_RIGHT_SIDE_CUTOFF,
         renderer = renderer,
         font = font,
         lines = &editor_lines,
@@ -108,9 +91,8 @@ main :: proc() {
         vim_mode = .NORMAL
     }
 
-    //editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
-    editor_get_visible_lines(&editor)
-
+    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
     cursor_visible := true
@@ -145,13 +127,20 @@ main :: proc() {
                 running = false
                 break loop
             case .TEXT_INPUT:
+                // @todo: get current line and set dirty
                 input := event.text.text
-                fmt.println(input)
+                foo := strings.clone_from_cstring(input)
+                defer delete(foo)
+
+                char, err_code := utf8.decode_rune(foo)
+                if err_code == 0 {
+                    fmt.eprintln("Failed to decode rune: ", foo)
+                }
 
                 if editor.vim_mode_enabled && editor.vim_mode == .NORMAL {
-                    //editor_vim_mode_normal_shortcuts(input, &editor)
+                    editor_vim_mode_normal_shortcuts(int(char), &editor)
                 } else {
-                    //editor_on_text_input(&editor, input)
+                    editor_on_text_input(&editor, int(char))
                 }
 
                 // cancel cursor blinking while typing
@@ -226,6 +215,7 @@ main :: proc() {
         assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
         editor_draw_text(&editor)
 
+
         if cursor_visible {
             assert(editor.cursor.x >= editor.editor_offset_x, "Cursor is off editor on x axis, left side of the editor")
             //assert(editor.cursor.x <= window_width, "Cursor is off the screen from right")
@@ -235,7 +225,7 @@ main :: proc() {
 
         // gutter clip
         sdl.SetRenderClipRect(renderer, &editor.editor_gutter_clip)
-        //editor_draw_line_nr(&editor)
+        editor_draw_line_nr(&editor)
         sdl.SetRenderClipRect(renderer, nil)
 
         // draw statusline
@@ -266,5 +256,10 @@ main :: proc() {
         fmt.eprintln("Could not stop text input")
         return
     }
+}
+
+// https://github.com/libsdl-org/SDL_ttf/blob/main/examples/testgputext.c#L224
+@(private = "file")
+draw :: proc() {
 }
 

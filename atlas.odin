@@ -18,21 +18,23 @@ Atlas :: struct {
     surface: ^sdl.Surface,
     height: i32,
     width: i32,
-    font_line_skip: f32, // vertical step for going to the next line of text.
+    font_line_skip: i32, // vertical step for going to the next line of text.
     font_ascent: i32,
     font_descent: i32,
     glyphs: map[int]Glyph
 }
 
 Glyph :: struct {
-    uv: sdl.FRect,
-    width, height: f32,
-    advance: f32, // how far to move the pen after drawing
-    bearing_x, bearing_y: f32, // bearingY: height above baseline (use ttf.GlyphMetrics32)
+    uv: sdl.Rect,
+    width, height: i32,
+    advance: i32, // how far to move the pen after drawing
+    bearing_x, bearing_y: i32, // bearingY: height above baseline (use ttf.GlyphMetrics32)
 }
 
-/*build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
-    atlas.font_line_skip = ttf.GetFontLineSkip(font^)
+build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
+    //atlas.font_line_skip = ttf.GetFontLineSkip(font^) // this gives me random value every time
+
+    atlas.font_line_skip = 30
     atlas.font_ascent = ttf.GetFontAscent(font^)
     atlas.font_descent = ttf.GetFontDescent(font^)
 
@@ -47,11 +49,6 @@ Glyph :: struct {
         }
 
         defer sdl.DestroySurface(surface)
-
-        if ttf.GlyphIsProvided32(font, rune(code_point)) == 0 {
-            fmt.eprintln("Glyph is not provided: ", ttf.GetError())
-            return
-        }
 
         // Get metrics
         min_x, max_x, min_y, max_y, adv : i32;
@@ -77,50 +74,49 @@ Glyph :: struct {
     atlas_w := COLS * cell_w
     atlas_h := ROWS * cell_h
 
-    pixel_format : sdl.PixelFormat = .RGBA8888
-    atlas.surface = sdl.CreateRGBSurfaceWithFormat(0, atlas_w, atlas_h, 32, u32(pixel_format))
+    atlas.surface = sdl.CreateSurface(atlas_w, atlas_h, .RGBA32)
     if atlas.surface == nil {
         fmt.eprintln("Could not create atlas' surface: ", sdl.GetError())
         return
     }
 
     // Atlas background transparent
-    sdl.FillRect(atlas.surface, nil, sdl.MapRGBA(atlas.surface.format, 0, 0, 0, 0));
+    clear_bg := sdl.MapSurfaceRGBA(atlas.surface, 0, 0, 0, 0)
+    sdl.FillSurfaceRect(atlas.surface, nil, clear_bg)
 
     for cp in FIRST_CODE_POINT..=LAST_CODE_POINT {
         col := i32(cp % COLS)
         row := i32(cp / COLS)
         cell : sdl.Rect = { col * cell_w, row * cell_h, cell_w, cell_h };
 
-        if ttf.GlyphIsProvided32(font, rune(cp)) == 0 {
-            continue
-        }
-
         min_x, max_x, min_y, max_y, adv : i32;
-        if ttf.GlyphMetrics32(font, rune(cp), &min_x, &max_x, &min_y, &max_y, &adv) != 0 {
+        if !ttf.GetGlyphMetrics(font, u32(cp), &min_x, &max_x, &min_y, &max_y, &adv) {
+            fmt.eprintln("Could not get glpyh metrics: ", cp)
             continue
         }
 
-        glyph_surface := ttf.RenderGlyph32_Blended(font, rune(cp), {232, 237, 199, 0})
+        glyph_surface := ttf.RenderGlyph_Blended(font, u32(cp), {255,255,255,0})
         if glyph_surface == nil {
             fmt.eprintln("could not get glyph_surface")
             continue
         }
 
-        defer sdl.FreeSurface(glyph_surface)
+        defer sdl.DestroySurface(glyph_surface)
 
         // Position the glyph bitmap inside the cell so that the glyph's baseline aligns consistently.
         // Baseline of the cell: top + pad + ascent
-        baseline_y := cell.y + pad + atlas.font_ascent
+        baseline_y := cell.y + pad
 
         // Top-left where bitmap should go:
         dst_x := cell.x + pad + min_x // minx = bearingX
-        dst_y := baseline_y
+        dst_y := baseline_y 
 
         dst : sdl.Rect = { dst_x, dst_y, glyph_surface.w, glyph_surface.h }
         src : sdl.Rect = { 0, 0, glyph_surface.w, glyph_surface.h }
 
-        sdl.BlitSurface(glyph_surface, &src, atlas.surface, &dst);
+        sdl.SetSurfaceBlendMode(glyph_surface, {.BLEND})
+        sdl.SetSurfaceBlendMode(atlas.surface, {.BLEND_PREMULTIPLIED})
+        sdl.BlitSurface(glyph_surface, nil, atlas.surface, &dst);
 
         atlas.glyphs[cp] = Glyph{
             uv = dst,
@@ -139,13 +135,9 @@ Glyph :: struct {
         return
     }
 
-    // .ADD makes the smaller font look better
-    sdl.SetTextureBlendMode(atlas.texture, .ADD)
-
     // For debug purpouse
-    sdl.SaveBMP(atlas.surface, "test.bmp")
+    //sdl.SaveBMP(atlas.surface, "test.bmp")
 }
-*/
 
 get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
     glyph := &atlas.glyphs[code_point]

@@ -34,11 +34,11 @@ Viewport :: enum {
 Editor :: struct {
     editor_gutter_clip: sdl.Rect,
     editor_clip: sdl.Rect,
-    editor_offset_x: f32, // to track horizontal scrolling
+    editor_offset_x: i32, // to track horizontal scrolling
 
     // Do not allow for the cursor to go past this line.
     // Once the cursor gets here, decrease the editor offset_x
-    cursor_right_side_cutoff_line: f32, 
+    cursor_right_side_cutoff_line: i32, 
     command_clip: sdl.Rect,
     active_viewport: Viewport,
 
@@ -49,7 +49,7 @@ Editor :: struct {
     lines: ^[dynamic]Line,
     lines_start: i32,
     lines_end: i32,
-    line_height: f32,
+    line_height: i32,
 
     cursor: Cursor,
 
@@ -60,6 +60,11 @@ Editor :: struct {
 Line :: struct {
     chars: [dynamic]Character_Info,
     x, y: i32,
+
+    data: cstring,
+    text: ^ttf.Text,
+    atlas_draw_sequence: ^ttf.GPUAtlasDrawSequence,
+    is_dirty: bool
 }
 
 Character_Info :: struct {
@@ -73,7 +78,7 @@ Cursor :: struct {
 
     // update every time cursor is moved manually left or right
     memorized_col_index: i32,
-    x, y: f32 // pixel pos
+    x, y: i32 // pixel pos
 }
 
 Cursor_Move_Direction :: enum {
@@ -83,8 +88,8 @@ Cursor_Move_Direction :: enum {
 }
 
 editor_draw_text :: proc(editor: ^Editor) {
-    pen_x : f32 = editor.editor_offset_x
-    baseline : f32 = 0
+    pen_x := editor.editor_offset_x
+    baseline : i32 = 0
 
     for line, i in editor.lines {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
@@ -98,10 +103,13 @@ editor_draw_text :: proc(editor: ^Editor) {
 
             glyph_x := pen_x + glyph.bearing_x
             glyph_y := baseline //- glyph.bearing_y
-            destination : sdl.FRect = {glyph_x, glyph_y, glyph.width, glyph.height}
+            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
 
-            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &glyph.uv, &destination)
-            pen_x += glyph.advance;
+            uv : sdl.FRect
+            sdl.RectToFRect(glyph.uv, &uv)
+
+            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
+            pen_x += glyph.advance
         }
 
         baseline += editor.glyph_atlas.font_line_skip
@@ -115,10 +123,10 @@ editor_move_cursor_up :: proc(editor: ^Editor, event: Cursor_Move_Event) {
     }
 
     editor.cursor.line_index -= 1
-    editor_get_visible_lines(editor, .UP)
+    editor_update_visible_lines(editor, .UP)
 
     cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
-    editor.cursor.y = f32(cursor_idx_in_view) * editor.line_height
+    editor.cursor.y = cursor_idx_in_view * editor.line_height
 
     editor_retain_cursor_column(editor)
 }
@@ -129,10 +137,10 @@ editor_move_cursor_down :: proc(editor: ^Editor) {
     }
 
     editor.cursor.line_index += 1
-    editor_get_visible_lines(editor, .DOWN)
+    editor_update_visible_lines(editor, .DOWN)
 
     cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
-    editor.cursor.y = f32(cursor_idx_in_view) * editor.line_height
+    editor.cursor.y = cursor_idx_in_view * editor.line_height
 
     editor_retain_cursor_column(editor)
 }
@@ -225,10 +233,8 @@ editor_on_return :: proc(editor: ^Editor) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor.cursor.x = editor.editor_offset_x
 
-    editor_get_visible_lines(editor, .DOWN)
-
     cursor_pos_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
-    editor.cursor.y = f32(cursor_pos_idx_in_view) * editor.line_height
+    editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
 
     line_chars : [dynamic]Character_Info
     if len(chars_to_move) > 0 {
@@ -240,6 +246,8 @@ editor_on_return :: proc(editor: ^Editor) {
         y = editor.cursor.line_index,
         chars = line_chars
     }, editor.cursor.line_index)
+
+    editor_update_visible_lines(editor, .DOWN)
 }
 
 editor_on_tab :: proc(editor: ^Editor) {
@@ -250,8 +258,12 @@ editor_on_tab :: proc(editor: ^Editor) {
 
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
+    if glyph == nil {
+        fmt.eprintln("Glyph not found from atlas: ", char)
+        return
+    }
 
-    if editor.cursor.x + glyph.advance > f32(editor.cursor_right_side_cutoff_line) {
+    if editor.cursor.x + glyph.advance > editor.cursor_right_side_cutoff_line {
         editor.editor_offset_x -= glyph.advance
     } else {
         editor.cursor.x += glyph.advance
@@ -268,7 +280,7 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
 }
 
-editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]f32, w: f32, h: f32) {
+editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
     sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
     rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
     sdl.RenderFillRect(renderer, &rect)
@@ -310,27 +322,28 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     append(editor.lines, ..lines[:])
 }
 
-// @fix: also use an atlas for this
-// line_nr should be a rune then ex: "1"
-/*editor_draw_line_nr :: proc(editor: ^Editor) {
-    line_skip: f32 = 0
+editor_draw_line_nr :: proc(editor: ^Editor) {
+    line_skip: i32 = 0
     for i in editor.lines_start..<editor.lines_end {
         line_nr := fmt.tprintf("%v", i + 1)
         line_nr_cstring := strings.clone_to_cstring(line_nr)
         defer delete(line_nr_cstring)
 
-        surface := ttf.RenderUTF8_Blended(editor.font, line_nr_cstring, {255, 255, 255, 50})
+        surface := ttf.RenderText_Blended(editor.font, line_nr_cstring, 0 ,{255, 255, 255, 50})
+        if surface == nil {
+            fmt.eprintln("RenderText_blended error: ", sdl.GetError())
+        }
         defer sdl.DestroySurface(surface)
 
         tex := sdl.CreateTextureFromSurface(editor.renderer, surface)
         defer sdl.DestroyTexture(tex)
 
-        rect : sdl.FRect = {0, line_skip, surface.w, surface.h}
-        sdl.RenderCopy(editor.renderer, tex, nil, &rect)
+        rect : sdl.FRect = {0, f32(line_skip), f32(surface.w), f32(surface.h)}
+        sdl.RenderTexture(editor.renderer, tex, nil, &rect)
 
         line_skip += editor.glyph_atlas.font_line_skip
     }
-}*/
+}
 
 editor_jump_to_line :: proc(destination_line: i32) {
     // @todo
@@ -341,9 +354,9 @@ editor_jump_to_line :: proc(destination_line: i32) {
 // but the value should not be assigned to the cursor.x, this would
 // put the cursor off the screen
 @(private = "file")
-cursor_pos_x_on_line :: proc(editor: ^Editor) -> f32 {
+cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
     current_line := editor.lines[editor.cursor.line_index]
-    pos_x: f32 = EDITOR_GUTTER_WIDTH;
+    pos_x: i32 = EDITOR_GUTTER_WIDTH;
     for char_info, i in current_line.chars[:editor.cursor.col_index] {
         pos_x += char_info.glyph.advance
     }
@@ -376,8 +389,10 @@ get_cursor_line_index_in_visible_lines :: proc(editor: Editor) -> i32 {
     return cursor_idx_in_visible_lines
 }
 
-editor_get_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
-    max_visible_rows := f32(editor.editor_clip.h) / editor.line_height
+editor_update_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
+    assert(editor.line_height > 0, "Editor line height is not set")
+
+    max_visible_rows := editor.editor_clip.h / editor.line_height
     cursor_idx_in_visible_lines := get_cursor_line_index_in_visible_lines(editor^)
 
     if cursor_idx_in_visible_lines >= i32(max_visible_rows) && move_dir == .DOWN {
@@ -396,7 +411,7 @@ editor_get_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Directio
 
 @(private = "file")
 editor_retain_cursor_column :: proc(editor: ^Editor) {
-    total_glyph_width : f32 = 0
+    total_glyph_width : i32 = 0
     current_line_data := editor.lines[editor.cursor.line_index].chars
 
     if int(editor.cursor.memorized_col_index) >= len(current_line_data) {
