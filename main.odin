@@ -127,14 +127,14 @@ main :: proc() {
                 running = false
                 break loop
             case .TEXT_INPUT:
-                // @todo: get current line and set dirty
                 input := event.text.text
-                foo := strings.clone_from_cstring(input)
-                defer delete(foo)
+                input_str := strings.clone_from_cstring(input)
+                defer delete(input_str)
 
-                char, err_code := utf8.decode_rune(foo)
+                char, err_code := utf8.decode_rune(input_str)
                 if err_code == 0 {
-                    fmt.eprintln("Failed to decode rune: ", foo)
+                    fmt.eprintln("Failed to decode rune: ", input_str)
+                    break
                 }
 
                 if editor.vim_mode_enabled && editor.vim_mode == .NORMAL {
@@ -215,10 +215,7 @@ main :: proc() {
         assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
         editor_draw_text(&editor)
 
-
         if cursor_visible {
-            assert(editor.cursor.x >= editor.editor_offset_x, "Cursor is off editor on x axis, left side of the editor")
-            //assert(editor.cursor.x <= window_width, "Cursor is off the screen from right")
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
         }
         sdl.SetRenderClipRect(renderer, nil)
@@ -229,7 +226,14 @@ main :: proc() {
         sdl.SetRenderClipRect(renderer, nil)
 
         // draw statusline
-        //editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
+        rect := editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
+        vim_mode_text_surface := ttf.RenderText_Blended(editor.font, get_vim_mode_text(editor.vim_mode), 0, {0 ,0 , 0, 255})
+        defer sdl.DestroySurface(vim_mode_text_surface)
+
+        vim_mode_texture := sdl.CreateTextureFromSurface(editor.renderer, vim_mode_text_surface)
+        defer sdl.DestroyTexture(vim_mode_texture)
+        rect.w = f32(vim_mode_text_surface.w)
+        sdl.RenderTexture(editor.renderer, vim_mode_texture, nil, &rect)
 
         /*if command_line_open {
             editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)

@@ -280,10 +280,11 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
 }
 
-editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) {
+editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) -> sdl.FRect {
     sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
     rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
     sdl.RenderFillRect(renderer, &rect)
+    return rect
 }
 
 editor_draw_status_line :: proc(renderer: ^sdl.Renderer) {
@@ -518,5 +519,17 @@ editor_update_cursor_and_offset :: proc(editor: ^Editor) {
 
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH, "Cursor pos can not be smaller than the gutter width")
     assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
+}
+
+get_vim_mode_text :: proc(vim_mode: Vim_Mode) -> cstring {
+    switch vim_mode {
+    case .NORMAL:
+        return "NORMAL"
+    case .VISUAL:
+        return "VISUAL"
+    case .INSERT:
+        return "INSERT"
+    }
+    return "NORMAL"
 }
 
