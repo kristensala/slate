@@ -16,7 +16,13 @@ append_line_at :: proc(editor_lines: ^[dynamic]Line, line: Line, index: i32) {
 
 append_char_at :: proc(chars: ^[dynamic]Character_Info, char: Character_Info, index: i32) {
     result : [dynamic]Character_Info
-    first_part := chars[0 : index]
+    if len(chars) == 0 {
+        append(&result, char)
+        chars^ = result
+        return
+    }
+
+    first_part := chars[:index]
     last_part := chars[index:]
 
     append(&result, ..first_part[:])

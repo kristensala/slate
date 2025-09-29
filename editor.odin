@@ -358,6 +358,10 @@ editor_jump_to_line :: proc(destination_line: i32) {
 cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
     current_line := editor.lines[editor.cursor.line_index]
     pos_x: i32 = EDITOR_GUTTER_WIDTH;
+    if current_line.chars == nil {
+        return pos_x
+    }
+
     for char_info, i in current_line.chars[:editor.cursor.col_index] {
         pos_x += char_info.glyph.advance
     }
@@ -446,6 +450,24 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
         editor_move_cursor_right(editor)
     } else if input == int('i') {
         editor.vim_mode = .INSERT
+    } else if input == int('o') {
+        editor_move_cursor_down(editor)
+
+        chars : [dynamic]Character_Info
+        append_line_at(editor.lines, Line{
+            x = 0,
+            y = editor.cursor.line_index,
+            chars = chars
+        }, editor.cursor.line_index)
+
+    } else if input == int('O') {
+        chars : [dynamic]Character_Info
+        append_line_at(editor.lines, Line{
+            x = 0,
+            y = editor.cursor.line_index,
+            chars = chars
+        }, editor.cursor.line_index)
+        editor_update_cursor_and_offset(editor)
     } else if input == int('w') { // @fix: if 2 spaces in a row and add symbol support.
         idx_to_move_to := editor.cursor.col_index
         current_line_data := editor.lines[editor.cursor.line_index].chars
