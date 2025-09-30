@@ -42,6 +42,16 @@ main :: proc() {
     }
     defer sdl.DestroyRenderer(renderer)
 
+    set_vsync := sdl.SetRenderVSync(renderer, 1) // @note(kristen): locks to display refresh rate
+    if !set_vsync {
+        fmt.eprintln("Failed to set renderer VSync!")
+
+        set_vsync_adaptive := sdl.SetRenderVSync(renderer, sdl.RENDERER_VSYNC_ADAPTIVE)
+        if !set_vsync_adaptive {
+            fmt.eprintln("Failed to set renderer VSync as adaptive!")
+        }
+    }
+
     if !ttf.Init() {
         fmt.eprintln("Failed to initialize ttf library", sdl.GetError())
         return
