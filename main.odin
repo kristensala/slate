@@ -67,7 +67,6 @@ main :: proc() {
     defer ttf.CloseFont(font)
     ttf.SetFontKerning(font, true)
 
-
     atlas := Atlas{}
     build_atlas(renderer, font, &atlas)
 
@@ -97,11 +96,13 @@ main :: proc() {
             y = 0
         },
         line_height = atlas.font_line_skip,
-        vim_mode_enabled = true,
-        vim_mode = .NORMAL
+        vim = Vim{
+            enabled = true,
+            mode = .NORMAL
+        }
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    //editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
@@ -147,8 +148,12 @@ main :: proc() {
                     break
                 }
 
-                if editor.vim_mode_enabled && editor.vim_mode == .NORMAL {
-                    editor_vim_mode_normal_shortcuts(int(char), &editor)
+                if editor.vim.enabled {
+                    if editor.vim.mode == .NORMAL || editor.vim.mode == .PENDING {
+                        exec_vim_motion_normal_mode(char, &editor)
+                    } else if editor.vim.mode == .INSERT {
+                        editor_on_text_input(&editor, int(char))
+                    }
                 } else {
                     editor_on_text_input(&editor, int(char))
                 }
@@ -171,6 +176,10 @@ main :: proc() {
                     break
                 }
                 if keycode == .RETURN {
+                    if editor.vim.enabled && editor.vim.mode == .NORMAL {
+                        editor_move_cursor_down(&editor)
+                        break
+                    }
                     editor_on_return(&editor)
                     break
                 }
@@ -200,8 +209,9 @@ main :: proc() {
                 }
 
                 if keycode == .ESCAPE {
-                    if editor.vim_mode_enabled && editor.vim_mode == .INSERT {
-                        editor.vim_mode = .NORMAL
+                    if editor.vim.enabled {
+                        editor.vim.mode = .NORMAL
+                        clear_vim_motion_store(&editor)
                     }
                 }
                 break
@@ -255,14 +265,8 @@ main :: proc() {
             sdl.SetRenderClipRect(renderer, nil)
 
             // draw statusline
-            rect := editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
-            vim_mode_text_surface := ttf.RenderText_Blended(editor.font, get_vim_mode_text(editor.vim_mode), 0, {0 ,0 , 0, 255})
-            defer sdl.DestroySurface(vim_mode_text_surface)
-
-            vim_mode_texture := sdl.CreateTextureFromSurface(editor.renderer, vim_mode_text_surface)
-            defer sdl.DestroyTexture(vim_mode_texture)
-            rect.w = f32(vim_mode_text_surface.w)
-            sdl.RenderTexture(editor.renderer, vim_mode_texture, nil, &rect)
+            rect := editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
+            draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y})
 
             /*if command_line_open {
               editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)

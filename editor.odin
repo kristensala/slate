@@ -20,12 +20,6 @@ Cursor_Move_Event :: enum {
     BACKSPACE
 }
 
-Vim_Mode :: enum {
-    NORMAL,
-    VISUAL,
-    INSERT
-}
-
 Viewport :: enum {
     EDITOR,
     COMMAND_LINE
@@ -53,8 +47,7 @@ Editor :: struct {
 
     cursor: Cursor,
 
-    vim_mode_enabled: bool,
-    vim_mode: Vim_Mode
+    vim: Vim,
 }
 
 Line :: struct {
@@ -88,9 +81,32 @@ Cursor_Move_Direction :: enum {
     DOWN
 }
 
+draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, pos: [2]f32) {
+    pen_x : i32 = i32(pos.x)
+
+    sdl.SetTextureColorMod(atlas.texture, 155, 0, 0) //red
+
+    for char in text {
+        glyph := get_glyph_from_atlas(atlas, int(char))
+        if glyph == nil {
+            continue
+        }
+        glyph_x := pen_x + glyph.bearing_x
+        destination : sdl.FRect = {f32(glyph_x), pos.y, f32(glyph.width), f32(glyph.height)}
+
+        uv : sdl.FRect
+        sdl.RectToFRect(glyph.uv, &uv)
+
+        sdl.RenderTexture(renderer, atlas.texture, &uv, &destination)
+        pen_x += glyph.advance
+    }
+}
+
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
     baseline : i32 = 0
+
+    sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
 
     for line, i in editor.lines {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
@@ -451,7 +467,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     } else if input == int('l') {
         editor_move_cursor_right(editor)
     } else if input == int('i') {
-        editor.vim_mode = .INSERT
+        editor.vim.mode = .INSERT
     } else if input == int('o') {
         editor_move_cursor_down(editor)
 
@@ -547,19 +563,7 @@ editor_update_cursor_and_offset :: proc(editor: ^Editor) {
     assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
 }
 
-get_vim_mode_text :: proc(vim_mode: Vim_Mode) -> cstring {
-    switch vim_mode {
-    case .NORMAL:
-        return "NORMAL"
-    case .VISUAL:
-        return "VISUAL"
-    case .INSERT:
-        return "INSERT"
-    }
-    return "NORMAL"
-}
 
-@(private = "file")
 reset_cursor :: proc(editor: ^Editor) {
     editor.cursor.col_index = 0
     editor.cursor.x = EDITOR_GUTTER_WIDTH
