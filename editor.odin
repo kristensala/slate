@@ -63,7 +63,6 @@ Line :: struct {
 
     data: cstring,
     text: ^ttf.Text,
-    atlas_draw_sequence: ^ttf.GPUAtlasDrawSequence,
     is_dirty: bool
 }
 
@@ -78,7 +77,9 @@ Cursor :: struct {
 
     // update every time cursor is moved manually left or right
     memorized_col_index: i32,
-    x, y: i32 // pixel pos
+    x, y: i32, // pixel pos
+
+    visible: bool
 }
 
 Cursor_Move_Direction :: enum {
@@ -440,6 +441,7 @@ editor_retain_cursor_column :: proc(editor: ^Editor) {
 }
 
 editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
+    //exec_vim_motion(input)
     if input == int('j') {
         editor_move_cursor_down(editor)
     } else if input == int('k') {
@@ -460,6 +462,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
             chars = chars
         }, editor.cursor.line_index)
 
+        reset_cursor(editor)
     } else if input == int('O') {
         chars : [dynamic]Character_Info
         append_line_at(editor.lines, Line{
@@ -467,7 +470,8 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
             y = editor.cursor.line_index,
             chars = chars
         }, editor.cursor.line_index)
-        editor_update_cursor_and_offset(editor)
+
+        reset_cursor(editor)
     } else if input == int('w') { // @fix: if 2 spaces in a row and add symbol support.
         idx_to_move_to := editor.cursor.col_index
         current_line_data := editor.lines[editor.cursor.line_index].chars
@@ -553,5 +557,12 @@ get_vim_mode_text :: proc(vim_mode: Vim_Mode) -> cstring {
         return "INSERT"
     }
     return "NORMAL"
+}
+
+@(private = "file")
+reset_cursor :: proc(editor: ^Editor) {
+    editor.cursor.col_index = 0
+    editor.cursor.x = EDITOR_GUTTER_WIDTH
+    editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 }
 

@@ -198,72 +198,84 @@ main :: proc() {
             }
         }
 
-        current_tick := sdl.GetTicks()
-        if current_tick >= next_blink {
-            cursor_visible = !cursor_visible
-            next_blink += u64(blink_interval)
+        // Update
+        {
+            current_tick := sdl.GetTicks()
+            if current_tick >= next_blink {
+                cursor_visible = !cursor_visible
+                next_blink += u64(blink_interval)
+            }
+            // show FPS in window title
+            frame_count += 1;
+            current_time := sdl.GetTicks()
+            if current_time - start_time >= 1000 { // 1 second passed
+                fps = u64(frame_count * 1000) / (current_time - start_time)
+                fps_str := fmt.tprintf("slate_editor; FPS: %v", fps)
+                fps_cstring := strings.clone_to_cstring(fps_str)
+                defer delete(fps_cstring)
+
+                sdl.SetWindowTitle(window, fps_cstring)
+                frame_count = 0;
+                start_time = current_time
+            }
         }
 
-        // Set background color of the window
-        sdl.SetRenderDrawColor(renderer, 6, 69, 38, 0)
+        // Draw
+        {
 
-        // Drawing should be done between RenderClear and RenderPresent
-        sdl.RenderClear(renderer)
+            // Set background color of the window
+            sdl.SetRenderDrawColor(renderer, 6, 69, 38, 0)
 
-        // editor clip
-        sdl.SetRenderClipRect(renderer, &editor.editor_clip)
-        assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
-        editor_draw_text(&editor)
+            // Drawing should be done between RenderClear and RenderPresent
+            sdl.RenderClear(renderer)
 
-        if cursor_visible {
-            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
+            // editor clip
+            sdl.SetRenderClipRect(renderer, &editor.editor_clip)
+            assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
+            editor_draw_text(&editor)
+
+            if cursor_visible {
+                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
+            }
+            sdl.SetRenderClipRect(renderer, nil)
+
+            // gutter clip
+            sdl.SetRenderClipRect(renderer, &editor.editor_gutter_clip)
+            editor_draw_line_nr(&editor)
+            sdl.SetRenderClipRect(renderer, nil)
+
+            // draw statusline
+            rect := editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
+            vim_mode_text_surface := ttf.RenderText_Blended(editor.font, get_vim_mode_text(editor.vim_mode), 0, {0 ,0 , 0, 255})
+            defer sdl.DestroySurface(vim_mode_text_surface)
+
+            vim_mode_texture := sdl.CreateTextureFromSurface(editor.renderer, vim_mode_text_surface)
+            defer sdl.DestroyTexture(vim_mode_texture)
+            rect.w = f32(vim_mode_text_surface.w)
+            sdl.RenderTexture(editor.renderer, vim_mode_texture, nil, &rect)
+
+            /*if command_line_open {
+              editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
+              }*/
+
+            sdl.RenderPresent(renderer)
         }
-        sdl.SetRenderClipRect(renderer, nil)
 
-        // gutter clip
-        sdl.SetRenderClipRect(renderer, &editor.editor_gutter_clip)
-        editor_draw_line_nr(&editor)
-        sdl.SetRenderClipRect(renderer, nil)
-
-        // draw statusline
-        rect := editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
-        vim_mode_text_surface := ttf.RenderText_Blended(editor.font, get_vim_mode_text(editor.vim_mode), 0, {0 ,0 , 0, 255})
-        defer sdl.DestroySurface(vim_mode_text_surface)
-
-        vim_mode_texture := sdl.CreateTextureFromSurface(editor.renderer, vim_mode_text_surface)
-        defer sdl.DestroyTexture(vim_mode_texture)
-        rect.w = f32(vim_mode_text_surface.w)
-        sdl.RenderTexture(editor.renderer, vim_mode_texture, nil, &rect)
-
-        /*if command_line_open {
-            editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
-        }*/
-
-        sdl.RenderPresent(renderer)
-
-        // show FPS in window title
-        frame_count += 1;
-        current_time := sdl.GetTicks();
-        if current_time - start_time >= 1000 { // 1 second passed
-            fps = u64(frame_count * 1000) / (current_time - start_time)
-            fps_str := fmt.tprintf("slate_editor; FPS: %v", fps)
-            fps_cstring := strings.clone_to_cstring(fps_str)
-            defer delete(fps_cstring)
-            sdl.SetWindowTitle(window, fps_cstring)
-            frame_count = 0;
-            start_time = current_time;
-        }
     }
 
-    stop_text_input := sdl.StopTextInput(window)
-    if !stop_text_input {
-        fmt.eprintln("Could not stop text input")
-        return
+    // Cleanup
+    {
+        stop_text_input := sdl.StopTextInput(window)
+        if !stop_text_input {
+            fmt.eprintln("Could not stop text input")
+        }
+
+        delete(editor.glyph_atlas.glyphs)
+        delete(editor.lines^)
     }
 }
 
-// https://github.com/libsdl-org/SDL_ttf/blob/main/examples/testgputext.c#L224
 @(private = "file")
-draw :: proc() {
+draw :: proc(renderer: ^sdl.Renderer, editor: ^Editor) {
 }
 

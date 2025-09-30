@@ -15,6 +15,7 @@
 - [ ] Command line to open files and edit editor settings
 - [ ] add more vim motions (and fix the current ones)
 - [ ] Open and read files (partially done; currently no ability to open a file while running the program)
+- [ ] Add an FPS cap
 
 # Resources
 - Freetype bindings are from https://github.com/englerj/odin-freetype/blob/main/freetype.odin

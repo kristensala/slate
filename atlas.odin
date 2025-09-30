@@ -32,11 +32,9 @@ Glyph :: struct {
 }
 
 build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
-    //atlas.font_line_skip = ttf.GetFontLineSkip(font^) // this gives me random value every time
-
-    atlas.font_line_skip = 30
-    atlas.font_ascent = ttf.GetFontAscent(font^)
-    atlas.font_descent = ttf.GetFontDescent(font^)
+    atlas.font_line_skip = ttf.GetFontLineSkip(font)
+    atlas.font_ascent = ttf.GetFontAscent(font)
+    atlas.font_descent = ttf.GetFontDescent(font)
 
     max_w : i32 = 1
     max_h : i32 = 1

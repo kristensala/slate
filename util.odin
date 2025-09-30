@@ -1,7 +1,5 @@
 package main
 
-import sdl "vendor:sdl3"
-
 append_line_at :: proc(editor_lines: ^[dynamic]Line, line: Line, index: i32) {
     result : [dynamic]Line
     first_part := editor_lines[0 : index]
