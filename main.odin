@@ -72,7 +72,6 @@ main :: proc() {
 
     editor_lines : [dynamic]Line
     line_chars : [dynamic]Character_Info
-
     append(&editor_lines, Line{
         x = 0,
         y = 0,
@@ -102,7 +101,7 @@ main :: proc() {
         }
     }
 
-    //editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
@@ -189,7 +188,7 @@ main :: proc() {
                 }
 
                 if keycode == .UP {
-                    editor_move_cursor_up(&editor, .ARROW_KEYS)
+                    editor_move_cursor_up(&editor)
                     break
                 }
 
@@ -251,7 +250,6 @@ main :: proc() {
 
             // editor clip
             sdl.SetRenderClipRect(renderer, &editor.editor_clip)
-            assert(editor.editor_offset_x <= EDITOR_GUTTER_WIDTH, "Editor offset should never be bigger than the default value")
             editor_draw_text(&editor)
 
             if cursor_visible {

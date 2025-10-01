@@ -21,7 +21,7 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
         editor_move_cursor_down(e)
         break
     case 'k':
-        editor_move_cursor_up(e, .ARROW_KEYS)
+        editor_move_cursor_up(e)
         break
     case 'l':
         editor_move_cursor_right(e)

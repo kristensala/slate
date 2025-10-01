@@ -15,11 +15,6 @@ EDITOR_RIGHT_SIDE_CUTOFF :: 10
 COMMAND_LINE_HEIGHT :: 25
 SPACE_ASCII_CODE :: 32
 
-Cursor_Move_Event :: enum {
-    ARROW_KEYS,
-    BACKSPACE
-}
-
 Viewport :: enum {
     EDITOR,
     COMMAND_LINE
@@ -53,10 +48,6 @@ Editor :: struct {
 Line :: struct {
     chars: [dynamic]Character_Info,
     x, y: i32,
-
-    data: cstring,
-    text: ^ttf.Text,
-    is_dirty: bool
 }
 
 Character_Info :: struct {
@@ -134,7 +125,7 @@ editor_draw_text :: proc(editor: ^Editor) {
     }
 }
 
-editor_move_cursor_up :: proc(editor: ^Editor, event: Cursor_Move_Event) {
+editor_move_cursor_up :: proc(editor: ^Editor) {
     if editor.cursor.line_index == 0 {
         return
     }
@@ -209,7 +200,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
         }
 
         ordered_remove(editor.lines, editor.cursor.line_index)
-        editor_move_cursor_up(editor, .BACKSPACE)
+        editor_move_cursor_up(editor)
         return
     }
 
@@ -461,7 +452,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     if input == int('j') {
         editor_move_cursor_down(editor)
     } else if input == int('k') {
-        editor_move_cursor_up(editor, .ARROW_KEYS)
+        editor_move_cursor_up(editor)
     } else if input == int('h') {
         editor_move_cursor_left(editor)
     } else if input == int('l') {
