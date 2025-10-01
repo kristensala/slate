@@ -446,13 +446,13 @@ editor_retain_cursor_column :: proc(editor: ^Editor) {
         }
     }
 
-    if len(current_line_data) == 0 {
-        editor.cursor.col_index = 0
-    } else if len(current_line_data) - 1 > int(editor.cursor.memorized_col_index) {
+    current_line_length := len(current_line_data)
+    if current_line_length - 1 >= int(editor.cursor.memorized_col_index) {
         editor.cursor.col_index = editor.cursor.memorized_col_index
     } else {
-        editor.cursor.col_index = i32(len(current_line_data))
+        editor.cursor.col_index = i32(current_line_length)
     }
+
     editor_update_cursor_and_offset(editor)
 }
 
