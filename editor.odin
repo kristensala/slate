@@ -63,7 +63,8 @@ Cursor :: struct {
     memorized_col_index: i32,
     x, y: i32, // pixel pos
 
-    visible: bool
+    visible: bool,
+    indent: i32
 }
 
 Cursor_Move_Direction :: enum {
@@ -98,15 +99,23 @@ editor_draw_text :: proc(editor: ^Editor) {
     baseline : i32 = 0
 
     sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+    string_count := 0
 
     for line, i in editor.lines {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
             continue
         }
+        
         for character_info in line.chars {
             glyph := character_info.glyph
             if glyph == nil {
                 continue
+            }
+
+            // set string color
+            if character_info.char == '"' {
+                string_count += 1
+                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
             }
 
             glyph_x := pen_x + glyph.bearing_x
@@ -118,6 +127,11 @@ editor_draw_text :: proc(editor: ^Editor) {
 
             sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
             pen_x += glyph.advance
+
+            if string_count >= 2 {
+                string_count = 0
+                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+            }
         }
 
         baseline += editor.glyph_atlas.font_line_skip
