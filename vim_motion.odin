@@ -38,14 +38,14 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
         e.vim.mode = .INSERT
         break
     case 'o':
-        editor_move_cursor_down(e)
-
         chars : [dynamic]Character_Info
         append_line_at(e.lines, Line{
             x = 0,
-            y = e.cursor.line_index,
+            y = e.cursor.line_index + 1,
             chars = chars
-        }, e.cursor.line_index)
+        }, e.cursor.line_index + 1)
+
+        editor_move_cursor_down(e)
 
         reset_cursor(e)
         e.vim.mode = .INSERT
@@ -58,6 +58,7 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
             chars = chars
         }, e.cursor.line_index)
 
+        editor_update_visible_lines(e)
         reset_cursor(e)
         e.vim.mode = .INSERT
         break
