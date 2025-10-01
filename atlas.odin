@@ -3,7 +3,6 @@ package main
 import "core:fmt"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
-import ft "freetype"
 
 @(private = "file") COLS :: 16
 @(private = "file") ROWS :: 10
