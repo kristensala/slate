@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:math"
 import "core:strings"
+import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 
@@ -46,13 +47,16 @@ Editor :: struct {
 }
 
 Line :: struct {
+    data: string,
     chars: [dynamic]Character_Info,
     x, y: i32,
 }
 
 Character_Info :: struct {
     char: rune,
-    glyph: ^Glyph
+    glyph: ^Glyph,
+
+    char_idx: i32
 }
 
 Cursor :: struct {
@@ -83,7 +87,7 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
         if glyph == nil {
             continue
         }
-        glyph_x := pen_x + glyph.bearing_x
+        glyph_x := pen_x
         destination : sdl.FRect = {f32(glyph_x), pos.y, f32(glyph.width), f32(glyph.height)}
 
         uv : sdl.FRect
@@ -105,12 +109,16 @@ editor_draw_text :: proc(editor: ^Editor) {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
             continue
         }
-        
-        for character_info in line.chars {
+        // letters uppercase [65..90] and  lower_case [97..122]
+
+        for character_info, i in line.chars {
             glyph := character_info.glyph
             if glyph == nil {
                 continue
             }
+
+            /*word, ok := strings.substring(line.data, i, 32)
+            fmt.println(word)*/
 
             // set string color
             if character_info.char == '"' {
@@ -118,7 +126,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                 sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
             }
 
-            glyph_x := pen_x + glyph.bearing_x
+            glyph_x := pen_x
             glyph_y := baseline //- glyph.bearing_y
             destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
 
@@ -295,6 +303,7 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
         char = rune(char),
         glyph = glyph
     }
+
     line := &editor.lines[editor.cursor.line_index]
     append_char_at(&line.chars, character_info, editor.cursor.col_index)
 
@@ -327,13 +336,15 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
         editor_line := Line{
             chars = make([dynamic]Character_Info)
         }
-        for character in line {
+
+        for character, idx in line {
             cp := int(character)
             glyph := get_glyph_from_atlas(editor.glyph_atlas, cp)
 
             character_info := Character_Info{
                 char = character,
-                glyph = glyph
+                glyph = glyph,
+                char_idx = i32(idx)
             }
             append(&editor_line.chars, character_info)
         }

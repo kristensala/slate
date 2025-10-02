@@ -109,7 +109,6 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         dst_y := baseline_y 
 
         dst : sdl.Rect = { dst_x, dst_y, glyph_surface.w, glyph_surface.h }
-        src : sdl.Rect = { 0, 0, glyph_surface.w, glyph_surface.h }
 
         sdl.SetSurfaceBlendMode(glyph_surface, {.BLEND})
         sdl.SetSurfaceBlendMode(atlas.surface, {.BLEND_PREMULTIPLIED})
