@@ -106,6 +106,7 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
 build_line_strings :: proc(lines: ^[dynamic]Line) {
     for &line in lines {
         // @todo(kristen): should I destroy this
+        // I'm not sure how to correctly user the builder
         builder := strings.builder_make()
         for c_info in line.chars {
             strings.write_rune(&builder, c_info.char)
@@ -122,10 +123,15 @@ editor_draw_text :: proc(editor: ^Editor) {
     sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
     string_count := 0
 
-    for line, i in editor.lines {
+    for &line, i in editor.lines {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
             continue
         }
+
+        if line.is_dirty {
+            update_line(&line)
+        }
+
         split_line_data := strings.split(line.data, " ")
         defer delete(split_line_data)
 
@@ -262,7 +268,6 @@ editor_on_backspace :: proc(editor: ^Editor) {
         editor_move_cursor_up(editor)
         editor.lines[editor.cursor.line_index].is_dirty = true
 
-        update_line(editor.lines)
         return
     }
 
@@ -274,24 +279,15 @@ editor_on_backspace :: proc(editor: ^Editor) {
     ordered_remove(&line.chars, editor.cursor.col_index)
 
     line.is_dirty = true
-    update_line(editor.lines)
-
-    //@todo(kristen): update line data
 }
 
-update_line :: proc(lines: ^[dynamic]Line) {
-    for &line in lines {
-        if !line.is_dirty {
-            continue
-        }
-
-        builder := strings.builder_make()
-        for r in line.chars {
-            strings.write_rune(&builder, r.char)
-        }
-        line.data = strings.to_string(builder)
-        line.is_dirty = false
+update_line :: proc(line: ^Line) {
+    builder := strings.builder_make()
+    for r in line.chars {
+        strings.write_rune(&builder, r.char)
     }
+    line.data = strings.to_string(builder)
+    line.is_dirty = false
 }
 
 editor_on_return :: proc(editor: ^Editor) { 
@@ -340,8 +336,6 @@ editor_on_return :: proc(editor: ^Editor) {
     }, editor.cursor.line_index)
 
     editor.lines[editor.cursor.line_index].is_dirty = true
-    update_line(editor.lines)
-
     editor_update_visible_lines(editor, .DOWN)
 }
 
@@ -376,7 +370,6 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     editor.cursor.memorized_col_index = editor.cursor.col_index
 
     line.is_dirty = true
-    update_line(editor.lines)
 }
 
 editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) -> sdl.FRect {

@@ -3,8 +3,8 @@ package main
 import "core:strings"
 import "core:fmt"
 
-// @note(kristen): if the incoming word is for example proc() then I want to stop coloring right after c
-// The int returned indicates exactly that
+// @note(kristen): if the incoming word is for example 'proc()' then I want to stop coloring right after c
+// The int returned indicates exactly when to change the color back
 contains :: proc(array: []string, word: string) -> (bool, int) {
     for lexer_word in array {
         if strings.starts_with(word, lexer_word) {
@@ -16,6 +16,8 @@ contains :: proc(array: []string, word: string) -> (bool, int) {
                 next_rune : u8 = word[len(lexer_word):][0]
 
                 // letters uppercase [65..90] and  lower_case [97..122]
+                // @note(kristen): if the keyword is followed by a symbol (e.g. #@[]{}..)
+                // then it's ok to color the word
                 if (next_rune < 65 || next_rune > 90) && (next_rune < 97 || next_rune > 122) {
                     return true, lexer_word_idx
                 }
