@@ -21,6 +21,12 @@ Viewport :: enum {
     COMMAND_LINE
 }
 
+lexer := []string{
+    "package", "for", "proc", "if", "else", "import",
+    "func", "function", "fn", "return", "int", "i32",
+    "def", "bool", "string", "defer"
+}
+
 Editor :: struct {
     editor_gutter_clip: sdl.Rect,
     editor_clip: sdl.Rect,
@@ -50,6 +56,8 @@ Line :: struct {
     data: string,
     chars: [dynamic]Character_Info,
     x, y: i32,
+
+    is_dirty: bool
 }
 
 Character_Info :: struct {
@@ -98,6 +106,18 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
     }
 }
 
+build_line_strings :: proc(lines: ^[dynamic]Line) {
+    for &line in lines {
+        // @todo(kristen): should I destroy this
+        builder := strings.builder_make()
+        for c_info in line.chars {
+            strings.write_rune(&builder, c_info.char)
+        }
+
+        line.data = strings.to_string(builder)
+    }
+}
+
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
     baseline : i32 = 0
@@ -110,8 +130,63 @@ editor_draw_text :: proc(editor: ^Editor) {
             continue
         }
         // letters uppercase [65..90] and  lower_case [97..122]
+        foo := strings.split(line.data, " ")
+        defer delete(foo)
 
-        for character_info, i in line.chars {
+        char_idx: int
+        for word, i in foo {
+            ok, counter := contains(lexer, word)
+            if ok {
+                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
+            } else {
+                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+            }
+
+            for char, idx in word {
+                if ok && idx == counter {
+                    sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+
+                }
+
+                glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+                glyph_x := pen_x
+                glyph_y := baseline //- glyph.bearing_y
+                destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
+
+                uv : sdl.FRect
+                sdl.RectToFRect(glyph.uv, &uv)
+
+                sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
+                pen_x += glyph.advance
+
+                char_idx += 1
+            }
+
+            if i == len(foo) - 1 {
+                // end of the line
+                continue
+            }
+
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, 32)
+            glyph_x := pen_x
+            glyph_y := baseline
+            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
+
+            uv : sdl.FRect
+            sdl.RectToFRect(glyph.uv, &uv)
+
+            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
+            pen_x += glyph.advance
+
+            char_idx += 1
+            // match the lexer and then iterate chars
+            // in the end of the word append space, unless it is the end of the line
+        }
+
+        baseline += editor.glyph_atlas.font_line_skip
+        pen_x = editor.editor_offset_x
+
+        /*for character_info, i in line.chars {
             glyph := character_info.glyph
             if glyph == nil {
                 continue
@@ -143,7 +218,7 @@ editor_draw_text :: proc(editor: ^Editor) {
         }
 
         baseline += editor.glyph_atlas.font_line_skip
-        pen_x = editor.editor_offset_x
+        pen_x = editor.editor_offset_x*/
     }
 }
 
@@ -222,7 +297,12 @@ editor_on_backspace :: proc(editor: ^Editor) {
         }
 
         ordered_remove(editor.lines, editor.cursor.line_index)
+
+        current_line.is_dirty = true
         editor_move_cursor_up(editor)
+        editor.lines[editor.cursor.line_index].is_dirty = true
+
+        update_line(editor.lines)
         return
     }
 
@@ -232,12 +312,34 @@ editor_on_backspace :: proc(editor: ^Editor) {
 
     line := &editor.lines[editor.cursor.line_index]
     ordered_remove(&line.chars, editor.cursor.col_index)
+
+    line.is_dirty = true
+    update_line(editor.lines)
+
+    //@todo(kristen): update line data
+}
+
+update_line :: proc(lines: ^[dynamic]Line) {
+    for &line in lines {
+        if !line.is_dirty {
+            continue
+        }
+
+        builder := strings.builder_make()
+        for r in line.chars {
+            strings.write_rune(&builder, r.char)
+        }
+        line.data = strings.to_string(builder)
+        line.is_dirty = false
+    }
 }
 
 editor_on_return :: proc(editor: ^Editor) { 
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 
     current_line := &editor.lines[editor.cursor.line_index]
+    current_line.is_dirty = true
+
     current_col := editor.cursor.col_index
     chars_to_move: []Character_Info
     defer {
@@ -277,6 +379,9 @@ editor_on_return :: proc(editor: ^Editor) {
         chars = line_chars
     }, editor.cursor.line_index)
 
+    editor.lines[editor.cursor.line_index].is_dirty = true
+    update_line(editor.lines)
+
     editor_update_visible_lines(editor, .DOWN)
 }
 
@@ -309,6 +414,9 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
 
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
+
+    line.is_dirty = true
+    update_line(editor.lines)
 }
 
 editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) -> sdl.FRect {
@@ -354,6 +462,8 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
 
     clear(editor.lines)
     append(editor.lines, ..lines[:])
+
+    build_line_strings(editor.lines)
 }
 
 editor_draw_line_nr :: proc(editor: ^Editor) {

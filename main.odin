@@ -102,6 +102,8 @@ main :: proc() {
     }
 
     editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    build_line_strings(editor.lines)
+
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
 
