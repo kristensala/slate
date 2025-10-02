@@ -116,6 +116,7 @@ build_line_strings :: proc(lines: ^[dynamic]Line) {
     }
 }
 
+// @todo: should each line itself be a texture?
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
     baseline : i32 = 0
@@ -123,8 +124,8 @@ editor_draw_text :: proc(editor: ^Editor) {
     sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
     string_count := 0
 
-    for &line, i in editor.lines {
-        if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
+    for &line, line_idx in editor.lines {
+        if i32(line_idx) < editor.lines_start || i32(line_idx) > editor.lines_end {
             continue
         }
 
@@ -136,7 +137,7 @@ editor_draw_text :: proc(editor: ^Editor) {
         defer delete(split_line_data)
 
         char_idx: int
-        for word, i in split_line_data {
+        for word, word_idx in split_line_data {
             contains_keyword, stop_idx := contains(lexer, word)
             if contains_keyword {
                 sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
@@ -163,7 +164,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                 char_idx += 1
             }
 
-            if i == len(split_line_data) - 1 {
+            if word_idx == len(split_line_data) - 1 {
                 // end of the line
                 continue
             }
@@ -267,7 +268,6 @@ editor_on_backspace :: proc(editor: ^Editor) {
         current_line.is_dirty = true
         editor_move_cursor_up(editor)
         editor.lines[editor.cursor.line_index].is_dirty = true
-
         return
     }
 
