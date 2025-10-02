@@ -3,6 +3,8 @@ package main
 import "core:strings"
 import "core:fmt"
 
+// @note(kristen): if the incoming word is for example proc() then I want to stop coloring right after c
+// The int returned indicates exactly that
 contains :: proc(array: []string, word: string) -> (bool, int) {
     for lexer_word in array {
         if strings.starts_with(word, lexer_word) {

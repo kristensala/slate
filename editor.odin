@@ -54,17 +54,14 @@ Editor :: struct {
 
 Line :: struct {
     data: string,
-    chars: [dynamic]Character_Info,
+    chars: [dynamic]Character_Info, // @todo: might not need this anymore
     x, y: i32,
-
     is_dirty: bool
 }
 
 Character_Info :: struct {
     char: rune,
     glyph: ^Glyph,
-
-    char_idx: i32
 }
 
 Cursor :: struct {
@@ -129,23 +126,21 @@ editor_draw_text :: proc(editor: ^Editor) {
         if i32(i) < editor.lines_start || i32(i) > editor.lines_end {
             continue
         }
-        // letters uppercase [65..90] and  lower_case [97..122]
-        foo := strings.split(line.data, " ")
-        defer delete(foo)
+        split_line_data := strings.split(line.data, " ")
+        defer delete(split_line_data)
 
         char_idx: int
-        for word, i in foo {
-            ok, counter := contains(lexer, word)
-            if ok {
+        for word, i in split_line_data {
+            contains_keyword, stop_idx := contains(lexer, word)
+            if contains_keyword {
                 sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
             } else {
                 sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
             }
 
             for char, idx in word {
-                if ok && idx == counter {
+                if contains_keyword && idx == stop_idx {
                     sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
-
                 }
 
                 glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
@@ -162,11 +157,12 @@ editor_draw_text :: proc(editor: ^Editor) {
                 char_idx += 1
             }
 
-            if i == len(foo) - 1 {
+            if i == len(split_line_data) - 1 {
                 // end of the line
                 continue
             }
 
+            // @note(kristen): finished with the word, add a space
             glyph := get_glyph_from_atlas(editor.glyph_atlas, 32)
             glyph_x := pen_x
             glyph_y := baseline
@@ -179,46 +175,10 @@ editor_draw_text :: proc(editor: ^Editor) {
             pen_x += glyph.advance
 
             char_idx += 1
-            // match the lexer and then iterate chars
-            // in the end of the word append space, unless it is the end of the line
         }
 
         baseline += editor.glyph_atlas.font_line_skip
         pen_x = editor.editor_offset_x
-
-        /*for character_info, i in line.chars {
-            glyph := character_info.glyph
-            if glyph == nil {
-                continue
-            }
-
-            /*word, ok := strings.substring(line.data, i, 32)
-            fmt.println(word)*/
-
-            // set string color
-            if character_info.char == '"' {
-                string_count += 1
-                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
-            }
-
-            glyph_x := pen_x
-            glyph_y := baseline //- glyph.bearing_y
-            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
-
-            uv : sdl.FRect
-            sdl.RectToFRect(glyph.uv, &uv)
-
-            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
-            pen_x += glyph.advance
-
-            if string_count >= 2 {
-                string_count = 0
-                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
-            }
-        }
-
-        baseline += editor.glyph_atlas.font_line_skip
-        pen_x = editor.editor_offset_x*/
     }
 }
 
@@ -452,7 +412,6 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
             character_info := Character_Info{
                 char = character,
                 glyph = glyph,
-                char_idx = i32(idx)
             }
             append(&editor_line.chars, character_info)
         }
