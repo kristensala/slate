@@ -42,7 +42,7 @@ main :: proc() {
     }
     defer sdl.DestroyRenderer(renderer)
 
-    set_vsync := sdl.SetRenderVSync(renderer, 1) // @note(kristen): locks to display refresh rate
+    set_vsync := sdl.SetRenderVSync(renderer, 1) // @note(kristen): locks to display's refresh rate
     if !set_vsync {
         fmt.eprintln("Failed to set renderer VSync!")
 
@@ -80,7 +80,7 @@ main :: proc() {
 
     editor := Editor{
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
-        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60},
+        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60}, // @todo: 60 magic nr
         editor_offset_x = EDITOR_GUTTER_WIDTH,
         cursor_right_side_cutoff_line = window_width - EDITOR_RIGHT_SIDE_CUTOFF,
         renderer = renderer,
@@ -250,7 +250,6 @@ main :: proc() {
 
         // Draw
         {
-
             // Set background color of the window
             sdl.SetRenderDrawColor(
                 renderer,
@@ -280,9 +279,9 @@ main :: proc() {
             rect := editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
             draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y})
 
-            /*if command_line_open {
-              editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
-              }*/
+            if command_line_open {
+                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
+            }
 
             sdl.RenderPresent(renderer)
         }
@@ -299,9 +298,5 @@ main :: proc() {
         delete(editor.glyph_atlas.glyphs)
         delete(editor.lines^)
     }
-}
-
-@(private = "file")
-draw :: proc(renderer: ^sdl.Renderer, editor: ^Editor) {
 }
 

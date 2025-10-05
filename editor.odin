@@ -24,7 +24,8 @@ Viewport :: enum {
 lexer := []string{
     "package", "for", "proc", "if", "else", "import",
     "func", "function", "fn", "return", "int", "i32",
-    "def", "bool", "string", "defer"
+    "def", "bool", "string", "defer", "switch", "in",
+    "case", "struct", "enum", "class", "public", "private"
 }
 
 Editor :: struct {
@@ -64,7 +65,7 @@ Theme :: struct {
 
 Line :: struct {
     data: string, // line as a full string
-    chars: [dynamic]Character_Info,
+    chars: [dynamic]Character_Info, // line as rune array
     texture: ^sdl.Texture,
     x, y: i32,
     is_dirty: bool
@@ -138,40 +139,44 @@ editor_draw_text :: proc(editor: ^Editor) {
         editor.theme.text_color.b)
 
     string_count := 0
-
-    for &line, line_idx in editor.lines {
-        if i32(line_idx) < editor.lines_start || i32(line_idx) > editor.lines_end {
-            continue
-        }
-
+    line_is_commented : bool
+    for &line, line_idx in editor.lines[editor.lines_start:editor.lines_end] {
         if line.is_dirty {
             update_line(&line)
         }
 
-        split_line_data := strings.split(line.data, " ")
-        defer delete(split_line_data)
+        trimmed_line := strings.trim_left_space(line.data)
+        if len(trimmed_line) >= 2 && trimmed_line[0] == 47 && trimmed_line[1] == 47 {
+            line_is_commented = true
+        } else {
+            line_is_commented = false
+        }
 
         char_idx: int
         quotation_mark_count: i32
 
+        split_line_data := strings.split(line.data, " ")
+        defer delete(split_line_data)
+
         for word, word_idx in split_line_data {
             contains_keyword, end_idx := contains(lexer, word)
-            if contains_keyword {
-                sdl.SetTextureColorMod(
-                    editor.glyph_atlas.texture,
-                    editor.theme.keyword_color.r,
-                    editor.theme.keyword_color.g,
-                    editor.theme.keyword_color.b)
-            } else {
-                if quotation_mark_count % 2 == 0 {
+            if !line_is_commented {
+                if contains_keyword {
                     sdl.SetTextureColorMod(
                         editor.glyph_atlas.texture,
-                        editor.theme.text_color.r,
-                        editor.theme.text_color.g,
-                        editor.theme.text_color.b)
-                    quotation_mark_count = 0
+                        editor.theme.keyword_color.r,
+                        editor.theme.keyword_color.g,
+                        editor.theme.keyword_color.b)
+                } else {
+                    if quotation_mark_count % 2 == 0 {
+                        sdl.SetTextureColorMod(
+                            editor.glyph_atlas.texture,
+                            editor.theme.text_color.r,
+                            editor.theme.text_color.g,
+                            editor.theme.text_color.b)
+                        quotation_mark_count = 0
+                    }
                 }
-
             }
 
             for char, idx in word {
@@ -190,6 +195,14 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.string_color.r,
                         editor.theme.string_color.g,
                         editor.theme.string_color.b) 
+                }
+
+                if line_is_commented {
+                    sdl.SetTextureColorMod(
+                        editor.glyph_atlas.texture,
+                        editor.theme.string_color.r,
+                        editor.theme.string_color.g,
+                        editor.theme.string_color.b)
                 }
 
                 glyph := line.chars[char_idx].glyph
@@ -375,6 +388,11 @@ editor_on_return :: proc(editor: ^Editor) {
     cursor_pos_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
 
+    max_visible_rows := editor.editor_clip.h / editor.line_height
+    if editor.cursor.y > max_visible_rows * editor.line_height - editor.line_height {
+        editor.cursor.y = max_visible_rows * editor.line_height - editor.line_height
+    }
+
     line_chars : [dynamic]Character_Info
     if len(chars_to_move) > 0 {
         append(&line_chars, ..chars_to_move[:])
@@ -452,6 +470,10 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
         for character, idx in line {
             cp := int(character)
             glyph := get_glyph_from_atlas(editor.glyph_atlas, cp)
+            if glyph == nil {
+                fmt.eprintln("Could not find glyph for: ", cp)
+                continue
+            }
 
             character_info := Character_Info{
                 char = character,
