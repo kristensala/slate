@@ -98,11 +98,18 @@ main :: proc() {
         vim = Vim{
             enabled = true,
             mode = .NORMAL
+        },
+        theme = Theme{
+            text_color = sdl.Color{255, 255, 255, 255},
+            background_color = sdl.Color{6, 69, 38, 0},
+            keyword_color = sdl.Color{125, 247, 0, 0},
+            string_color = sdl.Color{123, 255, 255, 0},
+            line_nr_color = sdl.Color{255, 255, 255, 50},
+            comment_color = sdl.Color{255, 255, 255, 50}
         }
     }
 
     editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
-    build_line_strings(editor.lines)
 
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
@@ -245,7 +252,12 @@ main :: proc() {
         {
 
             // Set background color of the window
-            sdl.SetRenderDrawColor(renderer, 6, 69, 38, 0)
+            sdl.SetRenderDrawColor(
+                renderer,
+                editor.theme.background_color.r,
+                editor.theme.background_color.g,
+                editor.theme.background_color.b,
+                editor.theme.background_color.a)
 
             // Drawing should be done between RenderClear and RenderPresent
             sdl.RenderClear(renderer)

@@ -1,4 +1,4 @@
-# slate_editor
+# Slate Editor
 ## Current state of the editor
 ![Demo](./assets/demo-1.gif)
 
@@ -16,3 +16,4 @@
 - [ ] add more vim motions (and fix the current ones)
 - [ ] Open and read files (partially done; currently no ability to open a file while running the program)
 - [x] Add an FPS cap
+- [ ] Get the word under the cursor (for lsp)

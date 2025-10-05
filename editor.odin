@@ -50,11 +50,22 @@ Editor :: struct {
     cursor: Cursor,
 
     vim: Vim,
+    theme: Theme
+}
+
+Theme :: struct {
+    text_color: sdl.Color,
+    background_color: sdl.Color,
+    keyword_color: sdl.Color,
+    string_color: sdl.Color,
+    line_nr_color: sdl.Color,
+    comment_color: sdl.Color
 }
 
 Line :: struct {
-    data: string,
-    chars: [dynamic]Character_Info, // @todo: might not need this anymore
+    data: string, // line as a full string
+    chars: [dynamic]Character_Info,
+    texture: ^sdl.Texture,
     x, y: i32,
     is_dirty: bool
 }
@@ -116,12 +127,16 @@ build_line_strings :: proc(lines: ^[dynamic]Line) {
     }
 }
 
-// @todo: should each line itself be a texture?
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
     baseline : i32 = 0
 
-    sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+    sdl.SetTextureColorMod(
+        editor.glyph_atlas.texture,
+        editor.theme.text_color.r,
+        editor.theme.text_color.g,
+        editor.theme.text_color.b)
+
     string_count := 0
 
     for &line, line_idx in editor.lines {
@@ -137,20 +152,47 @@ editor_draw_text :: proc(editor: ^Editor) {
         defer delete(split_line_data)
 
         char_idx: int
+        quotation_mark_count: i32
+
         for word, word_idx in split_line_data {
-            contains_keyword, stop_idx := contains(lexer, word)
+            contains_keyword, end_idx := contains(lexer, word)
             if contains_keyword {
-                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 125, 247, 0) //green
+                sdl.SetTextureColorMod(
+                    editor.glyph_atlas.texture,
+                    editor.theme.keyword_color.r,
+                    editor.theme.keyword_color.g,
+                    editor.theme.keyword_color.b)
             } else {
-                sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+                if quotation_mark_count % 2 == 0 {
+                    sdl.SetTextureColorMod(
+                        editor.glyph_atlas.texture,
+                        editor.theme.text_color.r,
+                        editor.theme.text_color.g,
+                        editor.theme.text_color.b)
+                    quotation_mark_count = 0
+                }
+
             }
 
             for char, idx in word {
-                if contains_keyword && idx == stop_idx {
-                    sdl.SetTextureColorMod(editor.glyph_atlas.texture, 255, 255, 255)
+                if contains_keyword && idx == end_idx {
+                    sdl.SetTextureColorMod(
+                        editor.glyph_atlas.texture,
+                        editor.theme.text_color.r,
+                        editor.theme.text_color.g,
+                        editor.theme.text_color.b)
                 }
 
-                glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+                if char == 34 {
+                    quotation_mark_count += 1
+                    sdl.SetTextureColorMod(
+                        editor.glyph_atlas.texture,
+                        editor.theme.string_color.r,
+                        editor.theme.string_color.g,
+                        editor.theme.string_color.b) 
+                }
+
+                glyph := line.chars[char_idx].glyph
                 glyph_x := pen_x
                 glyph_y := baseline //- glyph.bearing_y
                 destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
@@ -160,6 +202,15 @@ editor_draw_text :: proc(editor: ^Editor) {
 
                 sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
                 pen_x += glyph.advance
+
+                if quotation_mark_count == 2 {
+                    quotation_mark_count = 0
+                    sdl.SetTextureColorMod(
+                        editor.glyph_atlas.texture,
+                        editor.theme.text_color.r,
+                        editor.theme.text_color.g,
+                        editor.theme.text_color.b)
+                }
 
                 char_idx += 1
             }
@@ -425,7 +476,7 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
         line_nr_cstring := strings.clone_to_cstring(line_nr)
         defer delete(line_nr_cstring)
 
-        surface := ttf.RenderText_Blended(editor.font, line_nr_cstring, 0 ,{255, 255, 255, 50})
+        surface := ttf.RenderText_Blended(editor.font, line_nr_cstring, 0, editor.theme.line_nr_color)
         if surface == nil {
             fmt.eprintln("RenderText_blended error: ", sdl.GetError())
         }
