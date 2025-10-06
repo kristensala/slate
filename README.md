@@ -8,8 +8,7 @@
 - [x] Scrolling
 - [x] Cursor
 - [x] Delete text
-- [ ] migrate over to freetype (needs bindings - do yourself)??
-- [ ] with freetype add some syntax highlighting
+- [-] migrate over to freetype (needs bindings - do yourself)??
 - [x] status line for vim mode (NORMAL, VISUAL, INSERT)
 - [ ] Editor settings changing support
 - [ ] Command line to open files and edit editor settings
@@ -17,3 +16,4 @@
 - [ ] Open and read files (partially done; currently no ability to open a file while running the program)
 - [x] Add an FPS cap
 - [ ] Get the word under the cursor (for lsp)
+- [ ] Highlight block comment (`/**/`)

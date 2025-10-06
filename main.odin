@@ -80,7 +80,7 @@ main :: proc() {
 
     editor := Editor{
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
-        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - 60}, // @todo: 60 magic nr
+        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - EDITOR_BOTTOM_PADDING},
         editor_offset_x = EDITOR_GUTTER_WIDTH,
         cursor_right_side_cutoff_line = window_width - EDITOR_RIGHT_SIDE_CUTOFF,
         renderer = renderer,
@@ -145,9 +145,10 @@ main :: proc() {
             #partial switch event.type {
             case .WINDOW_RESIZED:
                 sdl.GetWindowSize(window, &window_width, &window_height)
-                editor.editor_clip.h = window_height
-                editor.editor_clip.w = window_width
+                editor.editor_clip.h = window_height - EDITOR_BOTTOM_PADDING
+                editor.editor_clip.w = window_width - EDITOR_GUTTER_WIDTH // @todo: something wrong here
                 editor.editor_gutter_clip.h = window_height
+                editor_update_visible_lines(&editor)
                 break
             case .QUIT:
                 running = false
