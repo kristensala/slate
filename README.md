@@ -20,3 +20,5 @@
 - [ ] Save/Save as
 - [ ] Vim motions (a, w, b, ciw, viw, dd, gg, ^, %, etc)
 - [ ] Show current file name
+- [ ] Mouse support (maybe? Who uses a mouse?)
+- [ ] LSP support
