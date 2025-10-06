@@ -94,6 +94,14 @@ main :: proc() {
             x = EDITOR_GUTTER_WIDTH,
             y = 0
         },
+        cmd_line = Command_Line{
+            cursor = &Cursor{
+                visible = false,
+                x = 0,
+                col_index = 0
+            },
+            input = &[dynamic]Character_Info{}
+        },
         line_height = atlas.font_line_skip,
         vim = Vim{
             enabled = true,
@@ -106,7 +114,8 @@ main :: proc() {
             string_color = sdl.Color{123, 255, 255, 0},
             line_nr_color = sdl.Color{255, 255, 255, 50},
             comment_color = sdl.Color{255, 255, 255, 50}
-        }
+        },
+        active_viewport = .EDITOR
     }
 
     editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
@@ -121,8 +130,6 @@ main :: proc() {
     start_time := sdl.GetTicks()
     frame_count := 0
     fps: u64 = 0.0
-
-    command_line_open := false
 
     started_text_input := sdl.StartTextInput(window)
     if !started_text_input {
@@ -156,29 +163,33 @@ main :: proc() {
                     break
                 }
 
-                if editor.vim.enabled {
-                    if editor.vim.mode == .NORMAL || editor.vim.mode == .PENDING {
-                        exec_vim_motion_normal_mode(char, &editor)
-                    } else if editor.vim.mode == .INSERT {
+                if editor.active_viewport == .EDITOR {
+                    if editor.vim.enabled {
+                        if editor.vim.mode == .NORMAL || editor.vim.mode == .PENDING {
+                            exec_vim_motion_normal_mode(char, &editor)
+                        } else if editor.vim.mode == .INSERT {
+                            editor_on_text_input(&editor, int(char))
+                        }
+                    } else {
                         editor_on_text_input(&editor, int(char))
                     }
-                } else {
-                    editor_on_text_input(&editor, int(char))
+
+                    // cancel cursor blinking while typing
+                    cursor_visible = true
+                    next_blink = sdl.GetTicks() + u64(blink_interval)
+                    break
                 }
 
-                // cancel cursor blinking while typing
-                cursor_visible = true
-                next_blink = sdl.GetTicks() + u64(blink_interval)
+                if editor.active_viewport == .COMMAND_LINE {
+                    editor_command_line_on_text_input(&editor, int(char))
+                }
+
                 break
             case .KEY_DOWN:
                 cursor_visible = true
                 next_blink = sdl.GetTicks() + u64(blink_interval)
 
                 keycode := event.key.scancode
-                if keycode == .F1 {
-                    command_line_open = !command_line_open
-                    break
-                }
                 if keycode == .TAB {
                     editor_on_tab(&editor)
                     break
@@ -217,6 +228,10 @@ main :: proc() {
                 }
 
                 if keycode == .ESCAPE {
+                    if editor.active_viewport == .COMMAND_LINE {
+                        editor.active_viewport = .EDITOR
+                    }
+
                     if editor.vim.enabled {
                         editor.vim.mode = .NORMAL
                         clear_vim_motion_store(&editor)
@@ -265,7 +280,7 @@ main :: proc() {
             sdl.SetRenderClipRect(renderer, &editor.editor_clip)
             editor_draw_text(&editor)
 
-            if cursor_visible {
+            if cursor_visible && editor.active_viewport == .EDITOR {
                 editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
             }
             sdl.SetRenderClipRect(renderer, nil)
@@ -279,8 +294,9 @@ main :: proc() {
             rect := editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
             draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y})
 
-            if command_line_open {
+            if editor.active_viewport == .COMMAND_LINE {
                 editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
+                editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, 10, EDITOR_FONT_SIZE)
             }
 
             sdl.RenderPresent(renderer)

@@ -17,6 +17,12 @@ Vim_Mode :: enum {
 
 exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     switch motion {
+    case ':':
+        if e.active_viewport == .EDITOR {
+            e.active_viewport = .COMMAND_LINE
+            //@todo: add ':' to cmd_line input e.cmd_line.input
+        }
+        break
     case 'j':
         editor_move_cursor_down(e)
         break
