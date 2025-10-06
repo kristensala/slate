@@ -4,16 +4,19 @@
 
 ## Roadmap
 - [x] Migrate from SDL2 to SDL3
-- [x] Render only visible lines
+- [x] Render/draw only visible lines
 - [x] Scrolling
 - [x] Cursor
 - [x] Delete text
-- [-] migrate over to freetype (needs bindings - do yourself)??
-- [x] status line for vim mode (NORMAL, VISUAL, INSERT)
-- [ ] Editor settings changing support
-- [ ] Command line to open files and edit editor settings
-- [ ] add more vim motions (and fix the current ones)
-- [ ] Open and read files (partially done; currently no ability to open a file while running the program)
+- [x] Status line for vim mode (NORMAL, VISUAL, INSERT)
 - [x] Add an FPS cap
-- [ ] Get the word under the cursor (for lsp)
+- [ ] Open and read files (partially done; currently no ability to open a file while running the program)
+- [ ] Use command line to edit editor appearance (font, font size, colors, etc) and to open new files
 - [ ] Highlight block comment (`/**/`)
+- [ ] Jump to line
+- [ ] Search in file
+- [ ] Copy/Paste
+- [ ] Highlight text
+- [ ] Save/Save as
+- [ ] Vim motions (a, w, b, ciw, viw, dd, gg, ^, %, etc)
+- [ ] Show current file name
