@@ -110,18 +110,18 @@ main :: proc() {
             mode = .NORMAL
         },
         theme = Theme{
-            text_color = sdl.Color{255, 255, 255, 255},
-            background_color = sdl.Color{6, 69, 38, 0},
-            keyword_color = sdl.Color{125, 247, 0, 0},
-            string_color = sdl.Color{123, 255, 255, 0},
+            text_color = sdl.Color{217,189,165, 0},
+            background_color = sdl.Color{13,54,21, 0},
+            keyword_color = sdl.Color{255, 255, 255, 255},
+            string_color = sdl.Color{59,224,195,0},
             line_nr_color = sdl.Color{255, 255, 255, 50},
-            comment_color = sdl.Color{255, 255, 255, 50},
+            comment_color = sdl.Color{189,181,185, 0},
             font_size = DEFAULT_EDITOR_FONT_SIZE
         },
         active_viewport = .EDITOR
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/raychess/main.odin")
+    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/slate/vim_motion.odin")
 
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
@@ -316,8 +316,8 @@ main :: proc() {
             sdl.SetRenderClipRect(renderer, nil)
 
             // draw statusline
-            rect := editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
-            draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y})
+            rect := editor_draw_rect(renderer, sdl.Color{217,185, 155, 0}, {0, window_height - COMMAND_LINE_HEIGHT - 30}, window_width, COMMAND_LINE_HEIGHT)
+            draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y - 5})
 
             // command line and its cursor
             if editor.active_viewport == .COMMAND_LINE {

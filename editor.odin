@@ -26,7 +26,8 @@ lexer := []string{
     "package", "for", "proc", "if", "else", "import",
     "func", "function", "fn", "return", "int", "i32",
     "def", "bool", "string", "defer", "switch", "in",
-    "case", "struct", "enum", "class", "public", "private"
+    "case", "struct", "enum", "class", "public", "private",
+    "dynamic"
 }
 
 Editor :: struct {
@@ -103,7 +104,7 @@ Cursor_Move_Direction :: enum {
 draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, pos: [2]f32) {
     pen_x : i32 = i32(pos.x)
 
-    sdl.SetTextureColorMod(atlas.texture, 155, 0, 0) //red
+    sdl.SetTextureColorMod(atlas.texture, 0, 0, 0)
 
     for char in text {
         glyph := get_glyph_from_atlas(atlas, int(char))
