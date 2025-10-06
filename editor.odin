@@ -8,7 +8,7 @@ import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 
-EDITOR_FONT_SIZE :: 25
+DEFAULT_EDITOR_FONT_SIZE :: 25
 EDITOR_GUTTER_WIDTH :: 70
 EDITOR_RIGHT_SIDE_CUTOFF :: 10
 EDITOR_BOTTOM_PADDING :: 60
@@ -62,7 +62,9 @@ Theme :: struct {
     keyword_color: sdl.Color,
     string_color: sdl.Color,
     line_nr_color: sdl.Color,
-    comment_color: sdl.Color
+    comment_color: sdl.Color,
+
+    font_size: i32
 }
 
 Line :: struct {
@@ -81,16 +83,15 @@ Character_Info :: struct {
 Cursor :: struct {
     line_index: i32,
     col_index: i32, // current col index
+    fat_cursor: i32,
+    skinny_cursor: i32,
 
     // update every time cursor is moved manually left or right
     memorized_col_index: i32,
     x, y: i32, // pixel pos
 
     visible: bool,
-    indent: i32,
-
-    fat_cursor: i32,
-    skinny_cursor: i32
+    indent: i32
 }
 
 Cursor_Move_Direction :: enum {

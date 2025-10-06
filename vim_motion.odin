@@ -20,7 +20,7 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     case ':':
         if e.active_viewport == .EDITOR {
             e.active_viewport = .COMMAND_LINE
-            //@todo: add ':' to cmd_line input e.cmd_line.input
+            editor_command_line_on_text_input(e, int(motion))
         }
         break
     case 'j':

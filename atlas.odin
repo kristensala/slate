@@ -67,7 +67,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
 
     pad : i32 = 3
     cell_w := max_w + pad * 2
-    cell_h := max_h + EDITOR_FONT_SIZE
+    cell_h := max_h + DEFAULT_EDITOR_FONT_SIZE
     atlas_w := COLS * cell_w
     atlas_h := ROWS * cell_h
 

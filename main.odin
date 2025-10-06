@@ -59,7 +59,7 @@ main :: proc() {
 
     defer ttf.Quit()
 
-    font := ttf.OpenFont("./fonts/IBMPlexMono-Regular.ttf", EDITOR_FONT_SIZE)
+    font := ttf.OpenFont("./fonts/IBMPlexMono-Regular.ttf", DEFAULT_EDITOR_FONT_SIZE)
     if font == nil {
         fmt.eprintln("Failed to load font: ", sdl.GetError())
         return
@@ -115,7 +115,8 @@ main :: proc() {
             keyword_color = sdl.Color{125, 247, 0, 0},
             string_color = sdl.Color{123, 255, 255, 0},
             line_nr_color = sdl.Color{255, 255, 255, 50},
-            comment_color = sdl.Color{255, 255, 255, 50}
+            comment_color = sdl.Color{255, 255, 255, 50},
+            font_size = DEFAULT_EDITOR_FONT_SIZE
         },
         active_viewport = .EDITOR
     }
@@ -199,15 +200,30 @@ main :: proc() {
                     break
                 }
                 if keycode == .RETURN {
-                    if editor.vim.enabled && editor.vim.mode == .NORMAL {
-                        editor_move_cursor_down(&editor)
+                    if editor.active_viewport == .EDITOR {
+                        if editor.vim.enabled && editor.vim.mode == .NORMAL {
+                            editor_move_cursor_down(&editor)
+                            break
+                        }
+
+                        editor_on_return(&editor)
                         break
                     }
-                    editor_on_return(&editor)
+
+                    if editor.active_viewport == .COMMAND_LINE {
+                        editor_cmd_line_on_return(&editor)
+                    }
                     break
                 }
                 if keycode == .BACKSPACE {
-                    editor_on_backspace(&editor)
+                    if editor.active_viewport == .EDITOR {
+                        editor_on_backspace(&editor)
+                        break
+                    }
+
+                    if editor.active_viewport == .COMMAND_LINE {
+                        editor_cmd_line_on_backspace(&editor)
+                    }
                     break
                 }
 
@@ -234,6 +250,7 @@ main :: proc() {
                 if keycode == .ESCAPE {
                     if editor.active_viewport == .COMMAND_LINE {
                         editor.active_viewport = .EDITOR
+                        reset_cmd_line(&editor)
                     }
 
                     if editor.vim.enabled {
@@ -287,7 +304,7 @@ main :: proc() {
                 if editor.vim.mode == .INSERT {
                     cursor_width = editor.cursor.skinny_cursor
                 }
-                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, cursor_width, EDITOR_FONT_SIZE)
+                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, cursor_width, editor.theme.font_size)
             }
             editor_draw_text(&editor)
 
@@ -304,8 +321,9 @@ main :: proc() {
 
             // command line and its cursor
             if editor.active_viewport == .COMMAND_LINE {
-                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
-                editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, 10, EDITOR_FONT_SIZE)
+                //editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
+                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cmd_line.cursor.x, window_height - COMMAND_LINE_HEIGHT}, 10, editor.theme.font_size)
+                editor_command_line_draw_text(&editor, window_height - COMMAND_LINE_HEIGHT - 5)
             }
 
             sdl.RenderPresent(renderer)
