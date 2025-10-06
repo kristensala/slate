@@ -22,3 +22,4 @@
 - [ ] Show current file name
 - [ ] Mouse support (maybe? Who uses a mouse?)
 - [ ] LSP support
+- [ ] Indenting (probably with LSP support?)
