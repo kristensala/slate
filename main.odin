@@ -92,7 +92,9 @@ main :: proc() {
             line_index = 0,
             col_index = 0,
             x = EDITOR_GUTTER_WIDTH,
-            y = 0
+            y = 0,
+            fat_cursor = atlas.glyphs[32].advance,
+            skinny_cursor = 2,
         },
         cmd_line = Command_Line{
             cursor = &Cursor{
@@ -280,11 +282,15 @@ main :: proc() {
 
             // editor clip
             sdl.SetRenderClipRect(renderer, &editor.editor_clip)
+            if cursor_visible && editor.active_viewport == .EDITOR {
+                cursor_width := editor.cursor.fat_cursor
+                if editor.vim.mode == .INSERT {
+                    cursor_width = editor.cursor.skinny_cursor
+                }
+                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, cursor_width, EDITOR_FONT_SIZE)
+            }
             editor_draw_text(&editor)
 
-            if cursor_visible && editor.active_viewport == .EDITOR {
-                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, 5, EDITOR_FONT_SIZE)
-            }
             sdl.SetRenderClipRect(renderer, nil)
 
             // gutter clip
@@ -296,6 +302,7 @@ main :: proc() {
             rect := editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT - 40}, window_width, COMMAND_LINE_HEIGHT)
             draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y})
 
+            // command line and its cursor
             if editor.active_viewport == .COMMAND_LINE {
                 editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
                 editor_draw_rect(renderer, sdl.Color{0, 0, 0, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, 10, EDITOR_FONT_SIZE)

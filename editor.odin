@@ -87,7 +87,10 @@ Cursor :: struct {
     x, y: i32, // pixel pos
 
     visible: bool,
-    indent: i32
+    indent: i32,
+
+    fat_cursor: i32,
+    skinny_cursor: i32
 }
 
 Cursor_Move_Direction :: enum {

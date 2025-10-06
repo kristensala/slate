@@ -5,7 +5,8 @@ import "core:strings"
 
 Command_Line :: struct {
     cursor: ^Cursor,
-    input: ^[dynamic]Character_Info
+    input: ^[dynamic]Character_Info,
+    pos: [2]i32 // where the text is displayed
 }
 
 editor_command_line_on_text_input :: proc(editor: ^Editor, char: int) {
