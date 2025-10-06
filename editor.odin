@@ -49,6 +49,7 @@ Editor :: struct {
     line_height: i32,
 
     cursor: Cursor,
+    cmd_line: Command_Line,
 
     vim: Vim,
     theme: Theme
@@ -139,17 +140,11 @@ editor_draw_text :: proc(editor: ^Editor) {
         editor.theme.text_color.b)
 
     string_count := 0
-    line_is_commented : bool
     for &line, line_idx in editor.lines[editor.lines_start:editor.lines_end] {
+        comment_started : bool = false
+
         if line.is_dirty {
             update_line(&line)
-        }
-
-        trimmed_line := strings.trim_left_space(line.data)
-        if len(trimmed_line) >= 2 && trimmed_line[0] == 47 && trimmed_line[1] == 47 {
-            line_is_commented = true
-        } else {
-            line_is_commented = false
         }
 
         char_idx: int
@@ -160,7 +155,7 @@ editor_draw_text :: proc(editor: ^Editor) {
 
         for word, word_idx in split_line_data {
             contains_keyword, end_idx := contains(lexer, word)
-            if !line_is_commented {
+            if !comment_started {
                 if contains_keyword {
                     sdl.SetTextureColorMod(
                         editor.glyph_atlas.texture,
@@ -180,6 +175,10 @@ editor_draw_text :: proc(editor: ^Editor) {
             }
 
             for char, idx in word {
+                if char == 47 && len(word) > idx + 1 && word[idx + 1] == 47 && !comment_started {
+                    comment_started = true
+                }
+
                 if contains_keyword && idx == end_idx {
                     sdl.SetTextureColorMod(
                         editor.glyph_atlas.texture,
@@ -197,7 +196,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.string_color.b) 
                 }
 
-                if line_is_commented {
+                if comment_started {
                     sdl.SetTextureColorMod(
                         editor.glyph_atlas.texture,
                         editor.theme.string_color.r,
@@ -446,10 +445,6 @@ editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32,
     rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
     sdl.RenderFillRect(renderer, &rect)
     return rect
-}
-
-editor_draw_status_line :: proc(renderer: ^sdl.Renderer) {
-    // @todo
 }
 
 editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
