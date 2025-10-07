@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:strings"
+import "core:strconv"
 import sdl "vendor:sdl3"
 
 Command_Line :: struct {
@@ -53,8 +54,29 @@ editor_cmd_line_on_return :: proc(e: ^Editor) {
     }
 
     if input[0].char == ':' {
-        // check if leading is a number
-        // then move the cursor to that line and update the editor
+        if len(input) == 1 {
+            return
+        }
+        leading := input[1:]
+        builder := strings.builder_make()
+        defer strings.builder_destroy(&builder)
+
+        for c in leading {
+            strings.write_rune(&builder, c.char)
+        }
+
+        str := strings.to_string(builder)
+
+        int_value, ok := strconv.parse_int(str)
+        if !ok {
+            fmt.eprintln("Could not parse string to int")
+            return
+        }
+
+        editor_move_cursor_to(e, i32(int_value - 1), 0)
+        e.active_viewport = .EDITOR
+
+        reset_cmd_line(e)
     }
 }
 

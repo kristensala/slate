@@ -295,7 +295,7 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
 
     editor.cursor.col_index -= 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
-    editor_update_cursor_and_offset(editor)
+    editor_update_cursor_col_and_offset(editor)
 
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
 }
@@ -309,7 +309,7 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
 
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
-    editor_update_cursor_and_offset(editor)
+    editor_update_cursor_col_and_offset(editor)
 }
 
 editor_on_backspace :: proc(editor: ^Editor) { 
@@ -563,6 +563,7 @@ get_cursor_line_index_in_visible_lines :: proc(editor: Editor) -> i32 {
     return cursor_idx_in_visible_lines
 }
 
+// @note: this handles scrolling but not jumping to the line
 editor_update_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
     assert(editor.line_height > 0, "Editor line height is not set")
 
@@ -605,7 +606,7 @@ editor_retain_cursor_column :: proc(editor: ^Editor) {
         editor.cursor.col_index = i32(current_line_length)
     }
 
-    editor_update_cursor_and_offset(editor)
+    editor_update_cursor_col_and_offset(editor)
 }
 
 editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
@@ -673,15 +674,33 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
 }
 
 editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move_to: i32) {
+    if int(line_to_move_to) > len(editor.lines) - 1 || line_to_move_to < 0 {
+        return
+    }
+
     editor.cursor.line_index = line_to_move_to
     editor.cursor.col_index = col_to_move_to
     editor.cursor.memorized_col_index = col_to_move_to
 
-    editor_update_cursor_and_offset(editor)
+    if line_to_move_to < editor.lines_start || line_to_move_to > editor.lines_end {
+        // @note: keep a 10 line buffer so that the cursor will be somewhere
+        // in the middle of the screen, not bottom or top
+        if line_to_move_to > 10 {
+            editor.lines_start = line_to_move_to - 10
+        } else {
+            editor.lines_start = 0
+        }
+        editor_update_visible_lines(editor)
+    }
+
+    cursor_pos_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
+    editor.cursor.y = cursor_pos_idx_in_view * editor.line_height
+
+    editor_update_cursor_col_and_offset(editor)
 }
 
 @(private = "file")
-editor_update_cursor_and_offset :: proc(editor: ^Editor) {
+editor_update_cursor_col_and_offset :: proc(editor: ^Editor) {
     left_bound := EDITOR_GUTTER_WIDTH
     right_bound := editor.cursor_right_side_cutoff_line
 
