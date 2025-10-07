@@ -13,7 +13,7 @@
 - [ ] Open and read files (partially done; currently no ability to open a file while running the program)
 - [ ] Use command line to edit editor appearance (font, font size, colors, etc) and to open new files
 - [ ] Color code block comment (`/**/`)
-- [ ] Jump to line
+- [x] Jump to line
 - [ ] Search in file
 - [ ] Copy/Paste
 - [ ] Highlight text
