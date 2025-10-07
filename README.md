@@ -1,6 +1,6 @@
 # Slate Editor
 ## Current state of the editor
-![Demo](./assets/demo.gif)
+![Demo](./assets/demo-2.gif)
 
 ## Roadmap
 - [x] Migrate from SDL2 to SDL3
