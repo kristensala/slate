@@ -181,7 +181,7 @@ editor_draw_text :: proc(editor: ^Editor) {
             }
 
             for char, idx in word {
-                if char == 47 && len(word) > idx + 1 && word[idx + 1] == 47 && !comment_started {
+                if char == '/' && len(word) > idx + 1 && word[idx + 1] == '/' && !comment_started {
                     comment_started = true
                 }
 
@@ -193,7 +193,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.text_color.b)
                 }
 
-                if char == 34 {
+                if char == '"' {
                     quotation_mark_count += 1
                     sdl.SetTextureColorMod(
                         editor.glyph_atlas.texture,
@@ -239,7 +239,7 @@ editor_draw_text :: proc(editor: ^Editor) {
             }
 
             // @note(kristen): finished with the word, add a space
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, 32)
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, SPACE_ASCII_CODE)
             glyph_x := pen_x
             glyph_y := baseline
             destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
@@ -672,7 +672,6 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     }
 }
 
-@(private = "file")
 editor_move_cursor_to :: proc(editor: ^Editor, line_to_move_to: i32, col_to_move_to: i32) {
     editor.cursor.line_index = line_to_move_to
     editor.cursor.col_index = col_to_move_to

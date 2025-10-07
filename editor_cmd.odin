@@ -45,8 +45,17 @@ editor_cmd_line_on_backspace :: proc(e: ^Editor) {
     ordered_remove(e.cmd_line.input, e.cmd_line.cursor.col_index)
 }
 
-
+// @todo
 editor_cmd_line_on_return :: proc(e: ^Editor) {
+    input := e.cmd_line.input
+    if len(input) == 0 {
+        return
+    }
+
+    if input[0].char == ':' {
+        // check if leading is a number
+        // then move the cursor to that line and update the editor
+    }
 }
 
 editor_command_line_draw_text :: proc(e: ^Editor, pos_y: i32) {

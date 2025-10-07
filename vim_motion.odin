@@ -17,6 +17,55 @@ Vim_Mode :: enum {
 
 exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     switch motion {
+    case 'w':
+        current_line_chars := e.lines[e.cursor.line_index].chars
+        index_to_jump_to : i32
+
+        // @todo(ksala): seems expensive to loop on every press
+        // when at the end of the line, jump to the next line
+        for char_info, i in current_line_chars {
+            if i32(i) < e.cursor.col_index {
+                continue
+            }
+
+            if len(current_line_chars) < i + 1 {
+                continue
+            }
+
+            if (char_info.char == '.' ||
+                char_info.char == '[' ||
+                char_info.char == SPACE_ASCII_CODE ||
+                char_info.char == '(') && current_line_chars[i + 1].char != SPACE_ASCII_CODE
+            {
+                editor_move_cursor_to(e, e.cursor.line_index, i32(i + 1))
+                break
+            }
+        }
+
+        break
+    case 'I':
+        current_line_chars := e.lines[e.cursor.line_index].chars
+        first_non_space_char_idx := 0
+        for char_info, i in current_line_chars {
+            if char_info.char != SPACE_ASCII_CODE {
+                first_non_space_char_idx = i
+                break
+            }
+        }
+
+        editor_move_cursor_to(e, e.cursor.line_index, i32(first_non_space_char_idx))
+        e.vim.mode = .INSERT
+        break
+    case 'A':
+        current_line := e.lines[e.cursor.line_index]
+        end_of_the_line := len(current_line.chars)
+        editor_move_cursor_to(e, e.cursor.line_index, i32(end_of_the_line))
+        e.vim.mode = .INSERT
+        break
+    case 'a':
+        editor_move_cursor_right(e)
+        e.vim.mode = .INSERT
+        break
     case ':':
         if e.active_viewport == .EDITOR {
             e.active_viewport = .COMMAND_LINE
@@ -89,7 +138,6 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
         break
     }
 }
-
 
 clear_vim_motion_store :: proc(e: ^Editor) {
     clear(&e.vim.motion_store)
