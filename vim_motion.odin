@@ -23,7 +23,7 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
 
         // @todo(ksala): seems expensive to loop on every press
         // when at the end of the line, jump to the next line
-        for char_info, i in current_line_chars {
+        for char, i in current_line_chars {
             if i32(i) < e.cursor.col_index {
                 continue
             }
@@ -32,10 +32,10 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
                 continue
             }
 
-            if (char_info.char == '.' ||
-                char_info.char == '[' ||
-                char_info.char == SPACE_ASCII_CODE ||
-                char_info.char == '(') && current_line_chars[i + 1].char != SPACE_ASCII_CODE
+            if (char == '.' ||
+                char == '[' ||
+                char == SPACE_ASCII_CODE ||
+                char == '(') && current_line_chars[i + 1] != SPACE_ASCII_CODE
             {
                 editor_move_cursor_to(e, e.cursor.line_index, i32(i + 1))
                 break
@@ -46,8 +46,8 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     case 'I':
         current_line_chars := e.lines[e.cursor.line_index].chars
         first_non_space_char_idx := 0
-        for char_info, i in current_line_chars {
-            if char_info.char != SPACE_ASCII_CODE {
+        for char, i in current_line_chars {
+            if char != SPACE_ASCII_CODE {
                 first_non_space_char_idx = i
                 break
             }
@@ -93,7 +93,7 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
         e.vim.mode = .INSERT
         break
     case 'o':
-        chars : [dynamic]Character_Info
+        chars : [dynamic]rune
         append_line_at(e.lines, Line{
             x = 0,
             y = e.cursor.line_index + 1,
@@ -106,7 +106,7 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
         e.vim.mode = .INSERT
         break
     case 'O':
-        chars : [dynamic]Character_Info
+        chars : [dynamic]rune
         append_line_at(e.lines, Line{
             x = 0,
             y = e.cursor.line_index,

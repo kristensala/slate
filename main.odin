@@ -71,7 +71,7 @@ main :: proc() {
     build_atlas(renderer, font, &atlas)
 
     editor_lines : [dynamic]Line
-    line_chars : [dynamic]Character_Info
+    line_chars : [dynamic]rune
     append(&editor_lines, Line{
         x = 0,
         y = 0,
@@ -102,7 +102,7 @@ main :: proc() {
                 x = 0,
                 col_index = 0
             },
-            input = &[dynamic]Character_Info{}
+            input = &[dynamic]rune{}
         },
         line_height = atlas.font_line_skip,
         vim = Vim{
@@ -122,6 +122,7 @@ main :: proc() {
     }
 
     editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/slate/vim_motion.odin")
+    //editor_on_file_open(&editor, "/home/salakris/Downloads/20MB-TXT-FILE.txt")
 
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")

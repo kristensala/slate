@@ -7,7 +7,7 @@ import sdl "vendor:sdl3"
 
 Command_Line :: struct {
     cursor: ^Cursor,
-    input: ^[dynamic]Character_Info,
+    input: ^[dynamic]rune,
     pos: [2]i32 // where the text is displayed
 }
 
@@ -20,12 +20,7 @@ editor_command_line_on_text_input :: proc(editor: ^Editor, char: int) {
 
     editor.cmd_line.cursor.x += glyph.advance
 
-    character_info := Character_Info{
-        char = rune(char),
-        glyph = glyph
-    }
-
-    append_char_at(editor.cmd_line.input, character_info, editor.cmd_line.cursor.col_index)
+    append_char_at(editor.cmd_line.input, rune(char), editor.cmd_line.cursor.col_index)
     editor.cmd_line.cursor.col_index += 1
 }
 
@@ -35,14 +30,15 @@ editor_cmd_line_on_backspace :: proc(e: ^Editor) {
     }
 
     e.cmd_line.cursor.col_index -= 1
-    glyph_under_cursor := e.cmd_line.input[e.cmd_line.cursor.col_index].glyph
-    if glyph_under_cursor == nil {
+    char := e.cmd_line.input[e.cmd_line.cursor.col_index]
+    glyph := get_glyph_from_atlas(e.glyph_atlas, int(char))
+    if glyph == nil {
         fmt.eprintln("Could not get glyph under the cursor")
         e.cmd_line.cursor.col_index += 1
         return
     }
 
-    e.cmd_line.cursor.x -= glyph_under_cursor.advance
+    e.cmd_line.cursor.x -= glyph.advance
     ordered_remove(e.cmd_line.input, e.cmd_line.cursor.col_index)
 }
 
@@ -53,7 +49,7 @@ editor_cmd_line_on_return :: proc(e: ^Editor) {
         return
     }
 
-    if input[0].char == ':' {
+    if input[0] == ':' {
         if len(input) == 1 {
             return
         }
@@ -62,11 +58,10 @@ editor_cmd_line_on_return :: proc(e: ^Editor) {
         defer strings.builder_destroy(&builder)
 
         for c in leading {
-            strings.write_rune(&builder, c.char)
+            strings.write_rune(&builder, c)
         }
 
         str := strings.to_string(builder)
-
         int_value, ok := strconv.parse_int(str)
         if !ok {
             fmt.eprintln("Could not parse string to int")
@@ -89,8 +84,8 @@ editor_command_line_draw_text :: proc(e: ^Editor, pos_y: i32) {
         e.theme.text_color.g,
         e.theme.text_color.b)
 
-    for char_info in e.cmd_line.input {
-        glyph := char_info.glyph
+    for char in e.cmd_line.input {
+        glyph := get_glyph_from_atlas(e.glyph_atlas, int(char))
 
         glyph_x := pen_x
         glyph_y := pos_y

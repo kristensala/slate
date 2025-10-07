@@ -76,6 +76,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
         fmt.eprintln("Could not create atlas' surface: ", sdl.GetError())
         return
     }
+    defer sdl.DestroySurface(atlas.surface)
 
     // Atlas background transparent
     clear_bg := sdl.MapSurfaceRGBA(atlas.surface, 0, 0, 0, 0)

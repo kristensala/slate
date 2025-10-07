@@ -22,6 +22,7 @@ Viewport :: enum {
     COMMAND_LINE
 }
 
+@(rodata)
 lexer := []string{
     "package", "for", "proc", "if", "else", "import",
     "func", "function", "fn", "return", "int", "i32",
@@ -69,16 +70,9 @@ Theme :: struct {
 }
 
 Line :: struct {
-    data: string, // line as a full string
-    chars: [dynamic]Character_Info, // line as rune array
-    texture: ^sdl.Texture,
+    chars: [dynamic]rune,
     x, y: i32,
     is_dirty: bool
-}
-
-Character_Info :: struct {
-    char: rune,
-    glyph: ^Glyph,
 }
 
 Cursor :: struct {
@@ -122,19 +116,6 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
     }
 }
 
-build_line_strings :: proc(lines: ^[dynamic]Line) {
-    for &line in lines {
-        // @todo(kristen): should I destroy this
-        // I'm not sure how to correctly user the builder
-        builder := strings.builder_make()
-        for c_info in line.chars {
-            strings.write_rune(&builder, c_info.char)
-        }
-
-        line.data = strings.to_string(builder)
-    }
-}
-
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
     baseline : i32 = 0
@@ -149,14 +130,20 @@ editor_draw_text :: proc(editor: ^Editor) {
     for &line, line_idx in editor.lines[editor.lines_start:editor.lines_end] {
         comment_started : bool = false
 
-        if line.is_dirty {
-            update_line(&line)
-        }
-
         char_idx: int
         quotation_mark_count: i32
 
-        split_line_data := strings.split(line.data, " ")
+        b := strings.builder_make()
+        defer strings.builder_destroy(&b)
+
+        for c in line.chars {
+            strings.write_rune(&b, c)
+        }
+
+        data := strings.to_string(b)
+        defer free(&data)
+
+        split_line_data := strings.split(data, " ")
         defer delete(split_line_data)
 
         for word, word_idx in split_line_data {
@@ -209,8 +196,9 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.string_color.g,
                         editor.theme.string_color.b)
                 }
-
-                glyph := line.chars[char_idx].glyph
+                
+                glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+                //glyph := line.chars[char_idx].glyph
                 glyph_x := pen_x
                 glyph_y := baseline //- glyph.bearing_y
                 destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
@@ -325,7 +313,8 @@ editor_on_backspace :: proc(editor: ^Editor) {
         editor.cursor.memorized_col_index = editor.cursor.col_index
 
         for c in line_above_current_line.chars {
-            editor.cursor.x += c.glyph.advance
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(c))
+            editor.cursor.x += glyph.advance
         }
 
         if len(current_line.chars) > 0 {
@@ -350,15 +339,6 @@ editor_on_backspace :: proc(editor: ^Editor) {
     line.is_dirty = true
 }
 
-update_line :: proc(line: ^Line) {
-    builder := strings.builder_make()
-    for r in line.chars {
-        strings.write_rune(&builder, r.char)
-    }
-    line.data = strings.to_string(builder)
-    line.is_dirty = false
-}
-
 editor_on_return :: proc(editor: ^Editor) { 
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 
@@ -366,7 +346,7 @@ editor_on_return :: proc(editor: ^Editor) {
     current_line.is_dirty = true
 
     current_col := editor.cursor.col_index
-    chars_to_move: []Character_Info
+    chars_to_move: []rune
     defer {
         chars_to_move = nil
     }
@@ -377,7 +357,7 @@ editor_on_return :: proc(editor: ^Editor) {
     }
 
     if current_col > 0 {
-        data: [dynamic]Character_Info
+        data: [dynamic]rune
         chars_to_move = current_line.chars[current_col:]
         chars_to_keep := current_line.chars[:current_col]
         append(&data, ..chars_to_keep[:])
@@ -398,7 +378,7 @@ editor_on_return :: proc(editor: ^Editor) {
         editor.cursor.y = max_visible_rows * editor.line_height - editor.line_height
     }
 
-    line_chars : [dynamic]Character_Info
+    line_chars : [dynamic]rune
     if len(chars_to_move) > 0 {
         append(&line_chars, ..chars_to_move[:])
     }
@@ -432,13 +412,9 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
         editor.cursor.x += glyph.advance
     }
 
-    character_info := Character_Info{
-        char = rune(char),
-        glyph = glyph
-    }
 
     line := &editor.lines[editor.cursor.line_index]
-    append_char_at(&line.chars, character_info, editor.cursor.col_index)
+    append_char_at(&line.chars, rune(char), editor.cursor.col_index)
 
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
@@ -465,7 +441,7 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     lines: [dynamic]Line
     for line in strings.split_lines_iterator(&it) {
         editor_line := Line{
-            chars = make([dynamic]Character_Info)
+            chars = make([dynamic]rune)
         }
 
         for character, idx in line {
@@ -476,11 +452,7 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
                 continue
             }
 
-            character_info := Character_Info{
-                char = character,
-                glyph = glyph,
-            }
-            append(&editor_line.chars, character_info)
+            append(&editor_line.chars, character)
         }
 
         append(&lines, editor_line)
@@ -488,8 +460,6 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
 
     clear(editor.lines)
     append(editor.lines, ..lines[:])
-
-    build_line_strings(editor.lines)
 }
 
 editor_draw_line_nr :: proc(editor: ^Editor) {
@@ -531,8 +501,9 @@ cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
         return pos_x
     }
 
-    for char_info, i in current_line.chars[:editor.cursor.col_index] {
-        pos_x += char_info.glyph.advance
+    for char, i in current_line.chars[:editor.cursor.col_index] {
+        glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+        pos_x += glyph.advance
     }
 
     return pos_x
@@ -541,7 +512,8 @@ cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
 @(private = "file")
 get_glyph_under_cursor :: proc(editor: ^Editor) -> ^Glyph {
     line := editor.lines[editor.cursor.line_index]
-    glyph := line.chars[editor.cursor.col_index].glyph
+    char := line.chars[editor.cursor.col_index]
+    glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
     return glyph
 }
 
@@ -590,12 +562,14 @@ editor_retain_cursor_column :: proc(editor: ^Editor) {
     current_line_data := editor.lines[editor.cursor.line_index].chars
 
     if int(editor.cursor.memorized_col_index) >= len(current_line_data) {
-        for char_info in current_line_data {
-            total_glyph_width += char_info.glyph.advance
+        for char in current_line_data {
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+            total_glyph_width += glyph.advance
         }
     } else {
-        for char_info in current_line_data[:editor.cursor.memorized_col_index] {
-            total_glyph_width += char_info.glyph.advance
+        for char in current_line_data[:editor.cursor.memorized_col_index] {
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+            total_glyph_width += glyph.advance
         }
     }
 
@@ -624,7 +598,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     } else if input == int('o') {
         editor_move_cursor_down(editor)
 
-        chars : [dynamic]Character_Info
+        chars : [dynamic]rune
         append_line_at(editor.lines, Line{
             x = 0,
             y = editor.cursor.line_index,
@@ -633,7 +607,7 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
 
         reset_cursor(editor)
     } else if input == int('O') {
-        chars : [dynamic]Character_Info
+        chars : [dynamic]rune
         append_line_at(editor.lines, Line{
             x = 0,
             y = editor.cursor.line_index,
@@ -644,11 +618,11 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     } else if input == int('w') { // @fix: if 2 spaces in a row and add symbol support.
         idx_to_move_to := editor.cursor.col_index
         current_line_data := editor.lines[editor.cursor.line_index].chars
-        for data, idx in current_line_data {
+        for char, idx in current_line_data {
             if i32(idx) < editor.cursor.col_index {
                 continue
             }
-            if data.char == rune(32) {
+            if char == rune(32) {
                 idx_to_move_to = i32(idx + 1)
                 break
             }
@@ -657,11 +631,11 @@ editor_vim_mode_normal_shortcuts :: proc(input: int, editor: ^Editor) {
     } else if input == int('b') { // @fix: if 2 spaces in a row
         idx_to_move_to : i32 = 0
         current_line_data := editor.lines[editor.cursor.line_index].chars
-        #reverse for data, idx in current_line_data {
+        #reverse for char, idx in current_line_data {
             if i32(idx) > editor.cursor.col_index {
                 continue
             }
-            if data.char == rune(32) {
+            if char == rune(32) {
                 if i32(idx) + 1 == editor.cursor.col_index {
                     continue
                 }
