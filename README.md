@@ -22,4 +22,5 @@
 - [ ] Show current file name
 - [ ] Mouse support (maybe? Who uses a mouse?)
 - [ ] LSP support
-- [ ] Indenting (probably with LSP support?)
+- [ ] Indenting (probably with LSP support?)``
+- [ ] Look into 'Gap buffer' & 'Rope (data strucutre)' to work with text, because storing text as char array is expensive
