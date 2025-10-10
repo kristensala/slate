@@ -141,10 +141,10 @@ editor_draw_text :: proc(editor: ^Editor) {
         }
 
         data := strings.to_string(b)
-        defer free(&data)
-
         split_line_data := strings.split(data, " ")
+
         defer delete(split_line_data)
+        free(&data)
 
         for word, word_idx in split_line_data {
             contains_keyword, end_idx := contains(lexer, word)
@@ -198,7 +198,6 @@ editor_draw_text :: proc(editor: ^Editor) {
                 }
                 
                 glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
-                //glyph := line.chars[char_idx].glyph
                 glyph_x := pen_x
                 glyph_y := baseline //- glyph.bearing_y
                 destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
@@ -260,7 +259,7 @@ editor_move_cursor_up :: proc(editor: ^Editor) {
     editor_retain_cursor_column(editor)
 }
 
-editor_move_cursor_down :: proc(editor: ^Editor) {
+editor_move_cursor_down :: proc(editor: ^Editor, retain_col: bool = true) {
     if int(editor.cursor.line_index + 1) == len(editor.lines) {
         return
     }
@@ -271,7 +270,11 @@ editor_move_cursor_down :: proc(editor: ^Editor) {
     cursor_idx_in_view := get_cursor_line_index_in_visible_lines(editor^)
     editor.cursor.y = cursor_idx_in_view * editor.line_height
 
-    editor_retain_cursor_column(editor)
+    if retain_col {
+        editor_retain_cursor_column(editor)
+    } else {
+        reset_cursor_to_first_word(editor)
+    }
 }
 
 editor_move_cursor_left :: proc(editor: ^Editor) {
@@ -306,7 +309,6 @@ editor_on_backspace :: proc(editor: ^Editor) {
             return
         }
 
-        current_line := editor.lines[editor.cursor.line_index]
         line_above_current_line := &editor.lines[editor.cursor.line_index - 1]
 
         editor.cursor.col_index = i32(len(line_above_current_line.chars))
@@ -317,6 +319,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
             editor.cursor.x += glyph.advance
         }
 
+        current_line := editor.lines[editor.cursor.line_index]
         if len(current_line.chars) > 0 {
             append(&line_above_current_line.chars, ..current_line.chars[:])
         }
@@ -469,6 +472,7 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
         line_nr_cstring := strings.clone_to_cstring(line_nr)
         defer delete(line_nr_cstring)
 
+        // @todo: use glyph atlas
         surface := ttf.RenderText_Blended(editor.font, line_nr_cstring, 0, editor.theme.line_nr_color)
         if surface == nil {
             fmt.eprintln("RenderText_blended error: ", sdl.GetError())
@@ -483,10 +487,6 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
 
         line_skip += editor.glyph_atlas.font_line_skip
     }
-}
-
-editor_jump_to_line :: proc(destination_line: i32) {
-    // @todo
 }
 
 // Cursor pos based where the cursor is on the line.
@@ -707,10 +707,28 @@ editor_update_cursor_col_and_offset :: proc(editor: ^Editor) {
     assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
 }
 
-
 reset_cursor :: proc(editor: ^Editor) {
     editor.cursor.col_index = 0
     editor.cursor.x = EDITOR_GUTTER_WIDTH
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
+}
+
+reset_cursor_to_first_word :: proc(e: ^Editor) {
+    current_line_chars := e.lines[e.cursor.line_index].chars
+    if len(current_line_chars) == 0 {
+        reset_cursor(e)
+        return
+    }
+
+    // get first char index which is not a space
+    for c, i in current_line_chars {
+        if c == SPACE_ASCII_CODE {
+            continue
+        }
+
+        editor_move_cursor_to(e, e.cursor.line_index, i32(i))
+        break
+    }
+
 }
 

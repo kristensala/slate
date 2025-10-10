@@ -19,10 +19,12 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     switch motion {
     case 'w':
         current_line_chars := e.lines[e.cursor.line_index].chars
-        index_to_jump_to : i32
+        should_jump_to_next_line := false
 
-        // @todo(ksala): seems expensive to loop on every press
-        // when at the end of the line, jump to the next line
+        if len(current_line_chars) == 0 {
+            should_jump_to_next_line = true
+        }
+
         for char, i in current_line_chars {
             if i32(i) < e.cursor.col_index {
                 continue
@@ -38,8 +40,15 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
                 char == '(') && current_line_chars[i + 1] != SPACE_ASCII_CODE
             {
                 editor_move_cursor_to(e, e.cursor.line_index, i32(i + 1))
+                should_jump_to_next_line = false
                 break
             }
+
+            should_jump_to_next_line = true
+        }
+
+        if should_jump_to_next_line {
+            editor_move_cursor_down(e, false)
         }
 
         break
@@ -65,6 +74,13 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     case 'a':
         editor_move_cursor_right(e)
         e.vim.mode = .INSERT
+        break
+    case '/':
+        if e.active_viewport == .EDITOR {
+            e.active_viewport = .COMMAND_LINE
+            editor_command_line_on_text_input(e, int(motion))
+        }
+        // @todo: search a string (rope data structure??)
         break
     case ':':
         if e.active_viewport == .EDITOR {

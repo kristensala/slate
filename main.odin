@@ -123,6 +123,8 @@ main :: proc() {
 
     editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/slate/vim_motion.odin")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/20MB-TXT-FILE.txt")
+    //editor_on_file_open(&editor, "/home/salakris/Downloads/50MB-TXT-FILE.txt")
+    //editor_on_file_open(&editor, "/home/salakris/Downloads/sample-2mb-text-file.txt")
 
     editor_update_visible_lines(&editor)
     assert(len(editor.lines) > 0, "Editor lines should have at least one line on startup")
@@ -271,7 +273,7 @@ main :: proc() {
                 next_blink += u64(blink_interval)
             }
             // show FPS in window title
-            frame_count += 1;
+            /*frame_count += 1;
             current_time := sdl.GetTicks()
             if current_time - start_time >= 1000 { // 1 second passed
                 fps = u64(frame_count * 1000) / (current_time - start_time)
@@ -282,7 +284,7 @@ main :: proc() {
                 sdl.SetWindowTitle(window, fps_cstring)
                 frame_count = 0;
                 start_time = current_time
-            }
+            }*/
         }
 
         // Draw
