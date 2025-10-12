@@ -28,7 +28,7 @@ lexer := []string{
     "func", "function", "fn", "return", "int", "i32",
     "def", "bool", "string", "defer", "switch", "in",
     "case", "struct", "enum", "class", "public", "private",
-    "dynamic"
+    "dynamic", "rune", "break"
 }
 
 Editor :: struct {
@@ -147,29 +147,28 @@ editor_draw_text :: proc(editor: ^Editor) {
         free(&data)
 
         for word, word_idx in split_line_data {
-            contains_keyword, end_idx := contains(lexer, word)
+            contains_keyword, start_idx, end_idx := contains(lexer, word)
             if !comment_started {
-                if contains_keyword {
+                if quotation_mark_count % 2 == 0 {
                     sdl.SetTextureColorMod(
                         editor.glyph_atlas.texture,
-                        editor.theme.keyword_color.r,
-                        editor.theme.keyword_color.g,
-                        editor.theme.keyword_color.b)
-                } else {
-                    if quotation_mark_count % 2 == 0 {
-                        sdl.SetTextureColorMod(
-                            editor.glyph_atlas.texture,
-                            editor.theme.text_color.r,
-                            editor.theme.text_color.g,
-                            editor.theme.text_color.b)
-                        quotation_mark_count = 0
-                    }
+                        editor.theme.text_color.r,
+                        editor.theme.text_color.g,
+                        editor.theme.text_color.b)
+                    quotation_mark_count = 0
                 }
             }
 
             for char, idx in word {
                 if char == '/' && len(word) > idx + 1 && word[idx + 1] == '/' && !comment_started {
                     comment_started = true
+                }
+                if contains_keyword && start_idx == idx  {
+                    sdl.SetTextureColorMod(
+                        editor.glyph_atlas.texture,
+                        editor.theme.keyword_color.r,
+                        editor.theme.keyword_color.g,
+                        editor.theme.keyword_color.b)
                 }
 
                 if contains_keyword && idx == end_idx {

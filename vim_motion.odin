@@ -5,7 +5,8 @@ import "core:fmt"
 Vim :: struct {
     enabled: bool,
     mode: Vim_Mode,
-    motion_store: [dynamic]rune
+    motion_store: [dynamic]rune,
+    search_pattern: string
 }
 
 Vim_Mode :: enum {
@@ -17,14 +18,17 @@ Vim_Mode :: enum {
 
 exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
     switch motion {
+    case 'b':
+        // @todo
+        break
     case 'w':
         current_line_chars := e.lines[e.cursor.line_index].chars
-        should_jump_to_next_line := false
-
-        if len(current_line_chars) == 0 {
-            should_jump_to_next_line = true
+        if len(current_line_chars) - 1 == int(e.cursor.col_index) || len(current_line_chars) == 0 {
+            editor_move_cursor_down(e, false)
+            return
         }
 
+        should_jump_to_next_line := false
         for char, i in current_line_chars {
             if i32(i) < e.cursor.col_index {
                 continue
@@ -34,12 +38,18 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
                 continue
             }
 
-            if (char == '.' ||
+            if char == '.' ||
                 char == '[' ||
+                char == ',' ||
                 char == SPACE_ASCII_CODE ||
-                char == '(') && current_line_chars[i + 1] != SPACE_ASCII_CODE
+                char == '('
             {
-                editor_move_cursor_to(e, e.cursor.line_index, i32(i + 1))
+                // @bug: if there is a space after any of them, it gets stuck
+                if len(current_line_chars) > i + 1 && current_line_chars[i + 1] != SPACE_ASCII_CODE {
+                    editor_move_cursor_to(e, e.cursor.line_index, i32(i + 1))
+                } else {
+                    editor_move_cursor_to(e, e.cursor.line_index, i32(i))
+                }
                 should_jump_to_next_line = false
                 break
             }
