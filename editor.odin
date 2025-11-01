@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+//import "core:mem"
 import "core:os"
 import "core:math"
 import "core:strings"
@@ -17,10 +18,24 @@ EDITOR_BOTTOM_PADDING :: 60
 COMMAND_LINE_HEIGHT :: 25
 SPACE_ASCII_CODE :: 32
 
+BUFFER_SIZE :: 15
+
 Viewport :: enum {
     EDITOR,
     COMMAND_LINE
 }
+
+/*
+   Gap buffer:
+   What if I read the data into multiple buffers
+   based on how many lines fit to the screen.
+   Each of these buffers will have a 15 char empty buffer at the end!
+   Like splitting them into paragraphs.
+   I don't think this will work. I can show half of the paragraph and this gets overly complicated
+
+   ...
+   I do know the index on the cursor inside of the buffer. I can take a substring starting anywhere close to the cursor
+ */
 
 @(rodata)
 lexer := []string{
@@ -425,7 +440,10 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
 }
 
 editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) -> sdl.FRect {
-    sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
+    ok := sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
+    if !ok {
+        fmt.eprintln("Could not set the rect color: ", sdl.GetError())
+    }
     rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
     sdl.RenderFillRect(renderer, &rect)
     return rect
@@ -440,6 +458,7 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     defer delete(data)
 
     it := string(data)
+
     lines: [dynamic]Line
     for line in strings.split_lines_iterator(&it) {
         editor_line := Line{

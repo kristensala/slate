@@ -80,7 +80,12 @@ main :: proc() {
 
     editor := Editor{
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
-        editor_clip = sdl.Rect{EDITOR_GUTTER_WIDTH, 0, window_width - EDITOR_GUTTER_WIDTH, window_height - EDITOR_BOTTOM_PADDING},
+        editor_clip = sdl.Rect{
+            EDITOR_GUTTER_WIDTH,
+            0,
+            window_width - EDITOR_GUTTER_WIDTH,
+            window_height - EDITOR_BOTTOM_PADDING
+        },
         editor_offset_x = EDITOR_GUTTER_WIDTH,
         cursor_right_side_cutoff_line = window_width - EDITOR_RIGHT_SIDE_CUTOFF,
         renderer = renderer,
@@ -121,7 +126,7 @@ main :: proc() {
         active_viewport = .EDITOR
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/personal/dev/slate/vim_motion.odin")
+    editor_on_file_open(&editor, "/home/salakris/Documents/dev/slate/vim_motion.odin")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/20MB-TXT-FILE.txt")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/50MB-TXT-FILE.txt")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/sample-2mb-text-file.txt")
@@ -300,6 +305,22 @@ main :: proc() {
             // Drawing should be done between RenderClear and RenderPresent
             sdl.RenderClear(renderer)
 
+            // draw statusline
+            {
+                rect := editor_draw_rect(
+                          renderer,
+                          sdl.Color{217,185, 155, 0},
+                          {0, window_height - COMMAND_LINE_HEIGHT - 30},
+                          window_width,
+                          COMMAND_LINE_HEIGHT)
+
+                draw_custom_text(
+                    renderer,
+                    editor.glyph_atlas,
+                    get_vim_mode_text(editor.vim.mode),
+                    {rect.x, rect.y - 5})
+            }
+
             // editor clip
             sdl.SetRenderClipRect(renderer, &editor.editor_clip)
             if cursor_visible && editor.active_viewport == .EDITOR {
@@ -307,7 +328,12 @@ main :: proc() {
                 if editor.vim.mode == .INSERT {
                     cursor_width = editor.cursor.skinny_cursor
                 }
-                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cursor.x, editor.cursor.y + 6}, cursor_width, editor.theme.font_size)
+                editor_draw_rect(
+                    renderer,
+                    sdl.Color{255, 255, 255, 255},
+                    {editor.cursor.x, editor.cursor.y + 6},
+                    cursor_width,
+                    editor.theme.font_size)
             }
             editor_draw_text(&editor)
 
@@ -318,14 +344,17 @@ main :: proc() {
             editor_draw_line_nr(&editor)
             sdl.SetRenderClipRect(renderer, nil)
 
-            // draw statusline
-            rect := editor_draw_rect(renderer, sdl.Color{217,185, 155, 0}, {0, window_height - COMMAND_LINE_HEIGHT - 30}, window_width, COMMAND_LINE_HEIGHT)
-            draw_custom_text(renderer, editor.glyph_atlas, get_vim_mode_text(editor.vim.mode), {rect.x, rect.y - 5})
 
             // command line and its cursor
             if editor.active_viewport == .COMMAND_LINE {
                 //editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {0, window_height - COMMAND_LINE_HEIGHT}, window_width, COMMAND_LINE_HEIGHT)
-                editor_draw_rect(renderer, sdl.Color{255, 255, 255, 255}, {editor.cmd_line.cursor.x, window_height - COMMAND_LINE_HEIGHT}, 10, editor.theme.font_size)
+                editor_draw_rect(
+                    renderer,
+                    sdl.Color{255, 255, 255, 255},
+                    {editor.cmd_line.cursor.x, window_height - COMMAND_LINE_HEIGHT},
+                    10,
+                    editor.theme.font_size)
+
                 editor_command_line_draw_text(&editor, window_height - COMMAND_LINE_HEIGHT - 5)
             }
 
@@ -338,7 +367,7 @@ main :: proc() {
     {
         stop_text_input := sdl.StopTextInput(window)
         if !stop_text_input {
-            fmt.eprintln("Could not stop text input")
+            fmt.eprintln("Could not stop text input: ", sdl.GetError())
         }
 
         delete(editor.glyph_atlas.glyphs)

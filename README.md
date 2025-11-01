@@ -24,3 +24,12 @@
 - [ ] LSP support
 - [ ] Indenting (probably with LSP support?)``
 - [ ] Look into 'Gap buffer' & 'Rope (data strucutre)' to work with text, because storing text as char array is expensive
+
+
+# Running on Linux
+- Install SDL3 core and SDL ttf (instructions are provided by SDL under SDL repo)
+    - `error while loading shared libraries: libSDL3.so.0: cannot open shared object file: No such file or directory`
+       to solve it, run `sudo ldconfig`
+
+## Known errors/bugs
+- On linux, when using `picom` there might be some flickering (not sure why atm)

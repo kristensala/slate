@@ -54,6 +54,11 @@ editor_cmd_line_on_return :: proc(e: ^Editor) {
             return
         }
         leading := input[1:]
+        if len(leading) == 1 && leading[0] == 'q' {
+            editor_quit()
+            return
+        }
+
         builder := strings.builder_make()
         defer strings.builder_destroy(&builder)
 
@@ -63,15 +68,13 @@ editor_cmd_line_on_return :: proc(e: ^Editor) {
 
         str := strings.to_string(builder)
         int_value, ok := strconv.parse_int(str)
-        if !ok {
-            fmt.eprintln("Could not parse string to int")
+        if ok {
+            editor_move_cursor_to(e, i32(int_value - 1), 0)
+            e.active_viewport = .EDITOR
+
+            reset_cmd_line(e)
             return
         }
-
-        editor_move_cursor_to(e, i32(int_value - 1), 0)
-        e.active_viewport = .EDITOR
-
-        reset_cmd_line(e)
     }
 }
 
@@ -98,6 +101,18 @@ editor_command_line_draw_text :: proc(e: ^Editor, pos_y: i32) {
         pen_x += glyph.advance
     }
 
+}
+
+editor_quit :: proc() -> bool {
+    quit_event := sdl.Event{
+        type = .QUIT
+    }
+    ok := sdl.PushEvent(&quit_event)
+    if !ok {
+        fmt.eprintln("Failed to send sdl Quit event. ", sdl.GetError())
+    }
+
+    return ok
 }
 
 reset_cmd_line :: proc(e: ^Editor) {
