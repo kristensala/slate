@@ -155,7 +155,7 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
 
             glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
             glyph_x := pen_x
-            glyph_y := baseline //- glyph.bearing_y
+            glyph_y := baseline
             destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
 
             uv : sdl.FRect
@@ -166,23 +166,6 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
         }
         baseline += editor.glyph_atlas.font_line_skip
         pen_x = editor.editor_offset_x
-
-        /*for char, char_idx in line.data^[line.gap_end:] {
-            fmt.println("drawing char: ", char)
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
-            glyph_x := pen_x
-            glyph_y := baseline //- glyph.bearing_y
-            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
-
-            uv : sdl.FRect
-            sdl.RectToFRect(glyph.uv, &uv)
-
-            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
-            pen_x += glyph.advance
-        }
-
-        baseline += editor.glyph_atlas.font_line_skip
-        pen_x = editor.editor_offset_x*/
     }
 }
 
