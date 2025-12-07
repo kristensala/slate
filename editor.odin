@@ -153,7 +153,15 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
                 }
             }
 
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+            char_do_draw := char
+            if (SHOW_BUFFER) {
+                if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
+                    char_do_draw = '_'
+                }
+
+            }
+
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char_do_draw))
             glyph_x := pen_x
             glyph_y := baseline
             destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
@@ -569,12 +577,6 @@ editor_on_file_open_v2 :: proc(editor: ^Editor, file_name: string) {
 
             len = i32(line_len),
             cap = i32(cap)
-        }
-
-        if (SHOW_BUFFER) {
-            for i in 0..<start {
-                gap_buffer.data[i] = '_'
-            }
         }
 
         for character in line {
