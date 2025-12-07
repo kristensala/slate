@@ -153,15 +153,15 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
                 }
             }
 
-            char_do_draw := char
+            char_to_draw := char
             if (SHOW_BUFFER) {
                 if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
-                    char_do_draw = '_'
+                    char_to_draw = '_'
                 }
 
             }
 
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char_do_draw))
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char_to_draw))
             glyph_x := pen_x
             glyph_y := baseline
             destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
