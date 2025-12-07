@@ -2,6 +2,9 @@
 ## Current state of the editor
 ![Demo](./assets/demo-2.gif)
 
+## Gap buffer demo
+![Gap Buffer Demo](./assets/gap_buffer_demo.gif)
+
 ## Roadmap
 - [x] Migrate from SDL2 to SDL3
 - [x] Render/draw only visible lines
