@@ -146,7 +146,13 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
     string_count := 0
 
     for &line, line_idx in editor.lines2 {
-        for char in line.data {
+        for char, char_idx in line.data {
+            if !SHOW_BUFFER {
+                if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
+                    continue
+                }
+            }
+
             glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
             glyph_x := pen_x
             glyph_y := baseline //- glyph.bearing_y
@@ -368,26 +374,23 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
 
     editor.cursor.col_index += 1
     
-
-    // @todo: move the gap
-    /*line.gap_start = editor.cursor.col_index
-    line.gap_end = line.gap_end + 1*/
-
+    // start shifting the cap
     new_gap_start := editor.cursor.col_index
     new_gap_end := line.gap_end + 1
 
-    fmt.println("gapend:", line.cap)
-
     new_data := make([]rune, line.cap)
-    count := 0
-    // shift the cap one step to the right
+
+    // @note: build the data by removing the gap
     old_data_before_gap := line.data[0:line.gap_start]
     old_data_after_gap := line.data[line.gap_end:]
 
     data : [dynamic]rune
+    defer delete(data)
+
     append(&data, ..old_data_before_gap[:])
     append(&data, ..old_data_after_gap[:])
 
+    count := 0
     for char, idx in new_data {
         if i32(idx) >= new_gap_start && i32(idx) < new_gap_end {
             new_data[idx] = '_'
@@ -405,6 +408,7 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
+
 }
 
 editor_move_cursor_right :: proc(editor: ^Editor) {
