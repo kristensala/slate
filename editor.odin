@@ -1,7 +1,6 @@
 package main
 
 import "core:fmt"
-//import "core:mem"
 import "core:os"
 import "core:math"
 import "core:strings"
@@ -18,7 +17,7 @@ EDITOR_BOTTOM_PADDING :: 60
 COMMAND_LINE_HEIGHT :: 25
 SPACE_ASCII_CODE :: 32
 
-BUFFER_SIZE :: 15
+SHOW_BUFFER :: true
 
 Viewport :: enum {
     EDITOR,
@@ -46,6 +45,7 @@ lexer := []string{
     "dynamic", "rune", "break"
 }
 
+
 Editor :: struct {
     editor_gutter_clip: sdl.Rect,
     editor_clip: sdl.Rect,
@@ -60,6 +60,9 @@ Editor :: struct {
     renderer: ^sdl.Renderer,
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
+    
+    // testing gap buffer
+    lines2: ^[dynamic]Gap_Buffer,
 
     lines: ^[dynamic]Line,
     lines_start: i32,
@@ -130,6 +133,52 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
         pen_x += glyph.advance
     }
 }
+editor_draw_text_v2 :: proc(editor: ^Editor) {
+    sdl.SetTextureColorMod(
+        editor.glyph_atlas.texture,
+        editor.theme.text_color.r,
+        editor.theme.text_color.g,
+        editor.theme.text_color.b)
+
+    pen_x := editor.editor_offset_x
+    baseline : i32 = 0
+
+    string_count := 0
+
+    for &line, line_idx in editor.lines2 {
+        for char in line.data {
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+            glyph_x := pen_x
+            glyph_y := baseline //- glyph.bearing_y
+            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
+
+            uv : sdl.FRect
+            sdl.RectToFRect(glyph.uv, &uv)
+
+            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
+            pen_x += glyph.advance
+        }
+        baseline += editor.glyph_atlas.font_line_skip
+        pen_x = editor.editor_offset_x
+
+        /*for char, char_idx in line.data^[line.gap_end:] {
+            fmt.println("drawing char: ", char)
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
+            glyph_x := pen_x
+            glyph_y := baseline //- glyph.bearing_y
+            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
+
+            uv : sdl.FRect
+            sdl.RectToFRect(glyph.uv, &uv)
+
+            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
+            pen_x += glyph.advance
+        }
+
+        baseline += editor.glyph_atlas.font_line_skip
+        pen_x = editor.editor_offset_x*/
+    }
+}
 
 editor_draw_text :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
@@ -162,7 +211,7 @@ editor_draw_text :: proc(editor: ^Editor) {
         free(&data)
 
         for word, word_idx in split_line_data {
-            contains_keyword, start_idx, end_idx := contains(lexer, word)
+            contains_keyword, start_idx, end_idx := contains_where(lexer, word)
             if !comment_started {
                 if quotation_mark_count % 2 == 0 {
                     sdl.SetTextureColorMod(
@@ -170,6 +219,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.text_color.r,
                         editor.theme.text_color.g,
                         editor.theme.text_color.b)
+
                     quotation_mark_count = 0
                 }
             }
@@ -291,6 +341,10 @@ editor_move_cursor_down :: proc(editor: ^Editor, retain_col: bool = true) {
     }
 }
 
+// @todo: move gap buffer
+// by updating the gap_start and gap_end
+// and move the chars around
+// between gap_start and gap_end there can be no characters
 editor_move_cursor_left :: proc(editor: ^Editor) {
     if editor.cursor.col_index <= 0 {
         editor.cursor.col_index = 0 // failsafe
@@ -303,6 +357,54 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     editor_update_cursor_col_and_offset(editor)
 
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
+}
+
+editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
+    line := &editor.lines2[editor.cursor.line_index]
+    char_count := line.len
+    if char_count == 0 || char_count == editor.cursor.col_index {
+        return
+    }
+
+    editor.cursor.col_index += 1
+    
+
+    // @todo: move the gap
+    /*line.gap_start = editor.cursor.col_index
+    line.gap_end = line.gap_end + 1*/
+
+    new_gap_start := editor.cursor.col_index
+    new_gap_end := line.gap_end + 1
+
+    fmt.println("gapend:", line.cap)
+
+    new_data := make([]rune, line.cap)
+    count := 0
+    // shift the cap one step to the right
+    old_data_before_gap := line.data[0:line.gap_start]
+    old_data_after_gap := line.data[line.gap_end:]
+
+    data : [dynamic]rune
+    append(&data, ..old_data_before_gap[:])
+    append(&data, ..old_data_after_gap[:])
+
+    for char, idx in new_data {
+        if i32(idx) >= new_gap_start && i32(idx) < new_gap_end {
+            new_data[idx] = '_'
+            continue
+        }
+
+        new_data[idx] = data[count]
+        count += 1
+    }
+
+    line.data = new_data
+    line.gap_start = new_gap_start
+    line.gap_end = new_gap_end
+
+
+    editor.cursor.memorized_col_index = editor.cursor.col_index
+    editor_update_cursor_col_and_offset(editor)
 }
 
 editor_move_cursor_right :: proc(editor: ^Editor) {
@@ -439,15 +541,68 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     line.is_dirty = true
 }
 
-editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) -> sdl.FRect {
+editor_draw_rect :: proc(
+    renderer: ^sdl.Renderer,
+    color: sdl.Color,
+    pos: [2]i32,
+    w: i32,
+    h: i32
+) -> sdl.FRect {
     ok := sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
     if !ok {
         fmt.eprintln("Could not set the rect color: ", sdl.GetError())
     }
-    rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
+    rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)}
     sdl.RenderFillRect(renderer, &rect)
     return rect
 }
+
+// @note: gap buffer testing here
+editor_on_file_open_v2 :: proc(editor: ^Editor, file_name: string) {
+    data, ok := os.read_entire_file_from_filename(file_name)
+    if !ok {
+        fmt.eprintln("Could not read the file")
+        return
+    }
+    defer delete(data)
+
+    it := string(data)
+
+    buffers: [dynamic]Gap_Buffer
+    for line in strings.split_lines_iterator(&it) {
+        line_len := len(line)
+        cap := line_len + DEFAULT_GAP_BUFFER_SIZE
+
+        start := DEFAULT_GAP_BUFFER_SIZE
+        gap_buffer := Gap_Buffer{
+            data = make([]rune, cap),
+
+            gap_start = 0,
+            gap_end = DEFAULT_GAP_BUFFER_SIZE,
+
+            len = i32(line_len),
+            cap = i32(cap)
+        }
+
+        if (SHOW_BUFFER) {
+            for i in 0..<start {
+                gap_buffer.data[i] = '_'
+            }
+        }
+
+        for character in line {
+            gap_buffer.data[start] = character
+            start = start + 1
+        }
+
+
+        append(&buffers, gap_buffer)
+    }
+
+    clear(editor.lines2)
+    append(editor.lines2, ..buffers[:])
+}
+
 
 editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     data, ok := os.read_entire_file_from_filename(file_name)
@@ -460,19 +615,25 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     it := string(data)
 
     lines: [dynamic]Line
+    // @todo: get the length of the line and add a buffer size to it
     for line in strings.split_lines_iterator(&it) {
+        {
+            // new gap buffer data testing
+            /*
+               line_len := len(line)
+               cap := line_len + DEFAULT_GAP_BUFFER_SIZE
+
+               data := make([]rune, cap)
+               gap_start := line_len
+               gap_end := len(data) - 1
+             */
+        }
+
         editor_line := Line{
             chars = make([dynamic]rune)
         }
 
         for character, idx in line {
-            cp := int(character)
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, cp)
-            if glyph == nil {
-                fmt.eprintln("Could not find glyph for: ", cp)
-                continue
-            }
-
             append(&editor_line.chars, character)
         }
 
@@ -513,13 +674,13 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
 // put the cursor off the screen
 @(private = "file")
 cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
-    current_line := editor.lines[editor.cursor.line_index]
+    current_line := editor.lines2[editor.cursor.line_index]
     pos_x: i32 = EDITOR_GUTTER_WIDTH;
-    if current_line.chars == nil {
+    if current_line.data == nil {
         return pos_x
     }
 
-    for char, i in current_line.chars[:editor.cursor.col_index] {
+    for char, i in current_line.data[:editor.cursor.col_index] {
         glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
         pos_x += glyph.advance
     }
@@ -554,7 +715,10 @@ get_cursor_line_index_in_visible_lines :: proc(editor: Editor) -> i32 {
 }
 
 // @note: this handles scrolling but not jumping to the line
-editor_update_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
+editor_update_visible_lines :: proc(
+    editor: ^Editor,
+    move_dir: Cursor_Move_Direction = .NONE
+) {
     assert(editor.line_height > 0, "Editor line height is not set")
 
     max_visible_rows := editor.editor_clip.h / editor.line_height
@@ -721,8 +885,11 @@ editor_update_cursor_col_and_offset :: proc(editor: ^Editor) {
 
     editor.cursor.x = cursor_x_on_line
 
-    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH, "Cursor pos can not be smaller than the gutter width")
-    assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
+    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH,
+        "Cursor pos can not be smaller than the gutter width")
+
+    assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line,
+        "Cursor pos can not be bigger than the right side cutoff line")
 }
 
 reset_cursor :: proc(editor: ^Editor) {
@@ -747,6 +914,5 @@ reset_cursor_to_first_word :: proc(e: ^Editor) {
         editor_move_cursor_to(e, e.cursor.line_index, i32(i))
         break
     }
-
 }
 

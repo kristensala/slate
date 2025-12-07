@@ -92,7 +92,12 @@ editor_command_line_draw_text :: proc(e: ^Editor, pos_y: i32) {
 
         glyph_x := pen_x
         glyph_y := pos_y
-        destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
+        destination : sdl.FRect = {
+            f32(glyph_x),
+            f32(glyph_y),
+            f32(glyph.width),
+            f32(glyph.height)
+        }
 
         uv : sdl.FRect
         sdl.RectToFRect(glyph.uv, &uv)
@@ -100,7 +105,6 @@ editor_command_line_draw_text :: proc(e: ^Editor, pos_y: i32) {
         sdl.RenderTexture(e.renderer, e.glyph_atlas.texture, &uv, &destination)
         pen_x += glyph.advance
     }
-
 }
 
 editor_quit :: proc() -> bool {

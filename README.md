@@ -32,4 +32,9 @@
        to solve it, run `sudo ldconfig`
 
 ## Known errors/bugs
-- On linux, when using `picom` there might be some flickering (not sure why atm)
+- On linux, when using `picom` there might be some flickering (not sure why atm).
+  I was using CPU on Powersave mode and the frames dropped quite low at times,
+  but on performance mode they still seem too low on my desktop vs on my laptop.
+  Desktop gets slightly over 100, but laptop goes to ~300 without the cap.
+  Desktop has i5, laptop has i7
+

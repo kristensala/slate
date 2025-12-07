@@ -6,7 +6,7 @@ import "core:fmt"
 // @note(kristen): if the incoming word is for example 'proc()' then I want to stop coloring right after c
 // The int returned indicates exactly when to change the color back
 // @todo: this is kind of a mess, fix
-contains :: proc(array: []string, word: string) -> (found: bool, start_idx: int, end_idx: int) {
+contains_where :: proc(array: []string, word: string) -> (found: bool, start_idx: int, end_idx: int) {
     for lexer_word in array {
         substring_idx := strings.index(word, lexer_word)
         if substring_idx != -1 {
