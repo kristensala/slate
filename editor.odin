@@ -338,10 +338,6 @@ editor_move_cursor_down :: proc(editor: ^Editor, retain_col: bool = true) {
     }
 }
 
-// @todo: move gap buffer
-// by updating the gap_start and gap_end
-// and move the chars around
-// between gap_start and gap_end there can be no characters
 editor_move_cursor_left :: proc(editor: ^Editor) {
     if editor.cursor.col_index <= 0 {
         editor.cursor.col_index = 0 // failsafe
@@ -356,6 +352,7 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
 }
 
+// @testing: shifting the gap buffer
 editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     line := &editor.lines2[editor.cursor.line_index]
     char_count := line.len
@@ -604,20 +601,7 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     it := string(data)
 
     lines: [dynamic]Line
-    // @todo: get the length of the line and add a buffer size to it
     for line in strings.split_lines_iterator(&it) {
-        {
-            // new gap buffer data testing
-            /*
-               line_len := len(line)
-               cap := line_len + DEFAULT_GAP_BUFFER_SIZE
-
-               data := make([]rune, cap)
-               gap_start := line_len
-               gap_end := len(data) - 1
-             */
-        }
-
         editor_line := Line{
             chars = make([dynamic]rune)
         }
