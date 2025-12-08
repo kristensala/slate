@@ -252,7 +252,8 @@ main :: proc() {
                 }
 
                 if keycode == .LEFT {
-                    editor_move_cursor_left(&editor)
+                    //editor_move_cursor_left(&editor)
+                    editor_move_cursor_left_v2(&editor)
                     break
                 }
 

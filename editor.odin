@@ -1,5 +1,7 @@
 package main
 
+import "core:c/libc"
+import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:math"
@@ -7,6 +9,7 @@ import "core:strings"
 import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
+
 
 DEFAULT_EDITOR_FONT_SIZE :: 25
 EDITOR_GUTTER_WIDTH :: 70
@@ -143,8 +146,6 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
     pen_x := editor.editor_offset_x
     baseline : i32 = 0
 
-    string_count := 0
-
     for &line, line_idx in editor.lines2 {
         for char, char_idx in line.data {
             if !SHOW_BUFFER {
@@ -158,7 +159,6 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
                 if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
                     char_to_draw = '_'
                 }
-
             }
 
             glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char_to_draw))
@@ -352,6 +352,29 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
 }
 
+editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
+    if editor.cursor.col_index <= 0 {
+        editor.cursor.col_index = 0 // failsafe
+        editor.editor_offset_x = EDITOR_GUTTER_WIDTH
+        return
+    }
+    line := &editor.lines2[editor.cursor.line_index]
+    gap_size := line.gap_end - line.gap_start
+
+    editor.cursor.col_index -= 1
+
+    line.data[line.gap_end] = line.data[line.gap_start]
+    line.gap_start = editor.cursor.col_index
+    line.gap_end = line.gap_start + gap_size
+
+    fmt.println(line.gap_start, line.gap_end, line.data)
+
+    editor.cursor.memorized_col_index = editor.cursor.col_index
+    editor_update_cursor_col_and_offset(editor)
+
+    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
+}
+
 // @testing: shifting the gap buffer
 editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     line := &editor.lines2[editor.cursor.line_index]
@@ -361,37 +384,11 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     }
 
     editor.cursor.col_index += 1
-    
-    // start shifting the cap
-    new_gap_start := editor.cursor.col_index
-    new_gap_end := line.gap_end + 1
 
-    new_data := make([]rune, line.cap)
-
-    // @note: build the data by removing the gap
-    old_data_before_gap := line.data[0:line.gap_start]
-    old_data_after_gap := line.data[line.gap_end:]
-
-    data : [dynamic]rune
-    defer delete(data)
-
-    append(&data, ..old_data_before_gap[:])
-    append(&data, ..old_data_after_gap[:])
-
-    count := 0
-    for char, idx in new_data {
-        if i32(idx) >= new_gap_start && i32(idx) < new_gap_end {
-            new_data[idx] = '_'
-            continue
-        }
-
-        new_data[idx] = data[count]
-        count += 1
-    }
-
-    line.data = new_data
-    line.gap_start = new_gap_start
-    line.gap_end = new_gap_end
+    line.data[line.gap_start] = line.data[line.gap_end]
+    line.gap_start = editor.cursor.col_index
+    line.data[line.gap_end] = line.data[line.gap_start]
+    line.gap_end += 1
 
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
