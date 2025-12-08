@@ -385,10 +385,12 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
 
     editor.cursor.col_index += 1
 
+    gap_size := line.gap_end - line.gap_start
+
     line.data[line.gap_start] = line.data[line.gap_end]
     line.gap_start = editor.cursor.col_index
     line.data[line.gap_end] = line.data[line.gap_start]
-    line.gap_end += 1
+    line.gap_end = line.gap_start + gap_size
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
