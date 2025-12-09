@@ -1,7 +1,5 @@
 package main
 
-import "core:c/libc"
-import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:math"
@@ -363,11 +361,13 @@ editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
 
     editor.cursor.col_index -= 1
 
-    last_char := line.data[line.gap_end - 1]
-    line.data[line.gap_end - 1] = line.data[editor.cursor.col_index]
-    line.gap_start = editor.cursor.col_index
-    line.data[line.gap_start] = last_char
-    line.gap_end = line.gap_start + gap_size
+    if gap_size > 0 {
+        last_char := line.data[line.gap_end - 1]
+        line.data[line.gap_end - 1] = line.data[editor.cursor.col_index]
+        line.gap_start = editor.cursor.col_index
+        line.data[line.gap_start] = last_char
+        line.gap_end = line.gap_start + gap_size
+    }
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
@@ -386,11 +386,12 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     editor.cursor.col_index += 1
 
     gap_size := line.gap_end - line.gap_start
-
-    line.data[line.gap_start] = line.data[line.gap_end]
-    line.gap_start = editor.cursor.col_index
-    line.data[line.gap_end] = line.data[line.gap_start]
-    line.gap_end = line.gap_start + gap_size
+    if gap_size > 0 {
+        line.data[line.gap_start] = line.data[line.gap_end]
+        line.gap_start = editor.cursor.col_index
+        line.data[line.gap_end] = line.data[line.gap_start]
+        line.gap_end = line.gap_start + gap_size
+    }
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
@@ -507,6 +508,46 @@ editor_on_tab :: proc(editor: ^Editor) {
     }
 }
 
+// @todo: start inserting into the gap buffer
+editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
+    glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
+    if glyph == nil {
+        fmt.eprintln("Glyph not found from atlas: ", char)
+        return
+    }
+
+    // @todo: here start inserting in to the gap
+    {
+        line := &editor.lines2[editor.cursor.line_index]
+        if line.gap_end - line.gap_start == 0 {
+            // if the gap if filled -> grow()
+            return
+        }
+
+        gap_start := line.gap_start
+        line.data[gap_start] = rune(char)
+        line.gap_start += 1
+
+        if line.gap_start >= line.gap_end {
+            line.gap_start = 0
+            line.gap_end = 0
+        }
+             
+        line.len += 1
+    }
+
+    if editor.cursor.x + glyph.advance > editor.cursor_right_side_cutoff_line {
+        editor.editor_offset_x -= glyph.advance
+    } else {
+        editor.cursor.x += glyph.advance
+    }
+
+
+    editor.cursor.col_index += 1
+    editor.cursor.memorized_col_index = editor.cursor.col_index
+}
+
+// @todo: start filling the gap buffer
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
     if glyph == nil {
@@ -519,7 +560,6 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     } else {
         editor.cursor.x += glyph.advance
     }
-
 
     line := &editor.lines[editor.cursor.line_index]
     append_char_at(&line.chars, rune(char), editor.cursor.col_index)

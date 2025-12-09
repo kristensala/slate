@@ -187,7 +187,8 @@ main :: proc() {
                         if editor.vim.mode == .NORMAL || editor.vim.mode == .PENDING {
                             exec_vim_motion_normal_mode(char, &editor)
                         } else if editor.vim.mode == .INSERT {
-                            editor_on_text_input(&editor, int(char))
+                            //editor_on_text_input(&editor, int(char))
+                            editor_on_text_input_v2(&editor, int(char))
                         }
                     } else {
                         editor_on_text_input(&editor, int(char))
