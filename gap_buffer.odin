@@ -2,18 +2,23 @@ package main
 
 import "core:fmt"
 
+// @note(ksala): for testing purpose keep the buffer size small.
+// After testing, each line buffer should be around 32 at least
 DEFAULT_GAP_BUFFER_SIZE :: 10
 
 Gap_Buffer :: struct {
     data: []rune,
 
-    // if len == cap then grow the gap
-    cap: i32, // Max capacity, len + GAP_BUFFER_SIZE
-    len: i32, // The length of the actual string
+    // Max capacity, len + GAP_BUFFER_SIZE
+    // if len == cap or gap_end - gap_start == 0; then grow the gap 
+    cap: i32, 
+    // The length of the actual string
+    // Can be calculated: len(data) - (gap_end - gap_start)
+    len: i32,
 
     gap_start: i32,
     gap_end: i32,
-    gap_size: i32
+    gap_size: i32 // @todo: do I have to keep track of this?
 }
 
 grow_gap :: proc(line: ^Gap_Buffer, cursor_pos: i32) {

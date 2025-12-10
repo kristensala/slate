@@ -532,7 +532,6 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
         }
 
         if line.gap_end - line.gap_start <= 0 {
-            fmt.println("Grow the gap")
             grow_gap(line, editor.cursor.col_index)
             editor_on_text_input_v2(editor, char) // @recursion here
             return
