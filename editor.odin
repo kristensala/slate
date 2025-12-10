@@ -54,14 +54,14 @@ Editor :: struct {
 
     // Do not allow for the cursor to go past this line.
     // Once the cursor gets here, decrease the editor offset_x
-    cursor_right_side_cutoff_line: i32, 
+    cursor_right_side_cutoff_line: i32,
     command_clip: sdl.Rect,
     active_viewport: Viewport,
 
     renderer: ^sdl.Renderer,
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
-    
+
     // testing gap buffer
     lines2: ^[dynamic]Gap_Buffer,
 
@@ -91,12 +91,13 @@ Theme :: struct {
 Line :: struct {
     chars: [dynamic]rune,
     x, y: i32,
-    is_dirty: bool
+    is_dirty: bool // @note: am I actually using this?
 }
 
 Cursor :: struct {
     line_index: i32,
     col_index: i32, // current col index
+
     fat_cursor: i32,
     skinny_cursor: i32,
 
@@ -153,7 +154,7 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
             }
 
             char_to_draw := char
-            if (SHOW_BUFFER) {
+            if SHOW_BUFFER {
                 if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
                     char_to_draw = '_'
                 }
@@ -245,7 +246,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.glyph_atlas.texture,
                         editor.theme.string_color.r,
                         editor.theme.string_color.g,
-                        editor.theme.string_color.b) 
+                        editor.theme.string_color.b)
                 }
 
                 if comment_started {
@@ -255,7 +256,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.string_color.g,
                         editor.theme.string_color.b)
                 }
-                
+
                 glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
                 glyph_x := pen_x
                 glyph_y := baseline //- glyph.bearing_y
@@ -409,7 +410,7 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
     editor_update_cursor_col_and_offset(editor)
 }
 
-editor_on_backspace :: proc(editor: ^Editor) { 
+editor_on_backspace :: proc(editor: ^Editor) {
     if editor.cursor.col_index == 0 {
         if editor.cursor.line_index == 0 {
             return
@@ -448,7 +449,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
     line.is_dirty = true
 }
 
-editor_on_return :: proc(editor: ^Editor) { 
+editor_on_return :: proc(editor: ^Editor) {
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 
     current_line := &editor.lines[editor.cursor.line_index]
@@ -516,24 +517,26 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
         return
     }
 
-    // @todo: here start inserting in to the gap
     {
         line := &editor.lines2[editor.cursor.line_index]
-        if line.gap_end - line.gap_start == 0 {
-            // if the gap if filled -> grow()
-            return
-        }
-
         gap_start := line.gap_start
         line.data[gap_start] = rune(char)
         line.gap_start += 1
+        line.len += 1
 
+        // @note: might not be needed
+        // just a failsafe
         if line.gap_start >= line.gap_end {
             line.gap_start = 0
             line.gap_end = 0
         }
-             
-        line.len += 1
+
+        if line.gap_end - line.gap_start <= 0 {
+            fmt.println("Grow the gap")
+            grow_gap(line, editor.cursor.col_index)
+            editor_on_text_input_v2(editor, char) // @recursion here
+            return
+        }
     }
 
     if editor.cursor.x + glyph.advance > editor.cursor_right_side_cutoff_line {
@@ -545,9 +548,9 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
 
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
+
 }
 
-// @todo: start filling the gap buffer
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
     if glyph == nil {
@@ -925,4 +928,3 @@ reset_cursor_to_first_word :: proc(e: ^Editor) {
         break
     }
 }
-
