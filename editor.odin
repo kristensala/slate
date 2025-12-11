@@ -374,6 +374,9 @@ editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
 }
 
 // @testing: shifting the gap buffer
+// @bug: when cursor is at the end of the data
+//       the last letter is still to the right of the buffer in the line.data.
+//       PS. Visually it is correct
 editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     line := &editor.lines2[editor.cursor.line_index]
     char_count := line.len
