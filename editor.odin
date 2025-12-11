@@ -395,8 +395,6 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
         line.gap_end = line.gap_start + gap_size
     }
 
-    // @todo: this might not work with the gap buffer;
-    // Might have to exclude the buffer every time
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
 }
