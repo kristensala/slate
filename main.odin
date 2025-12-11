@@ -381,5 +381,6 @@ main :: proc() {
 
         delete(editor.glyph_atlas.glyphs)
         delete(editor.lines^)
+        delete(editor.lines2^)
     }
 }

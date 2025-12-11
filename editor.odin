@@ -59,7 +59,7 @@ Editor :: struct {
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
 
-    // testing gap buffer
+    //@todo: testing gap buffer
     lines2: ^[dynamic]Gap_Buffer,
 
     lines: ^[dynamic]Line,
