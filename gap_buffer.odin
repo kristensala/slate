@@ -10,8 +10,8 @@ Gap_Buffer :: struct {
     data: []rune,
 
     // Max capacity, len + GAP_BUFFER_SIZE
-    // if len == cap or gap_end - gap_start == 0; then grow the gap 
-    cap: i32, 
+    // if len == cap or gap_end - gap_start == 0; then grow the gap
+    cap: i32,
     // The length of the actual string
     // Can be calculated: len(data) - (gap_end - gap_start)
     len: i32,
@@ -43,9 +43,26 @@ grow_gap :: proc(line: ^Gap_Buffer, cursor_pos: i32) {
     line.gap_size = gap_end - cursor_pos
 }
 
-// cursor pos will be the start of the gap
-// end of the cap = cursor_pos + gap_size
-move_gap :: proc(line: ^Gap_Buffer, cursor_pos: i32) {
+move_gap :: proc(line: ^Gap_Buffer, cursor_pos: i32, move_direction: Cursor_Move_Direction) {
+    gap_size := line.gap_end - line.gap_start
+    if gap_size <= 0 {
+        return
+    }
 
+    if move_direction == .RIGHT {
+        line.data[line.gap_start] = line.data[line.gap_end]
+        line.gap_start = cursor_pos
+        line.data[line.gap_end] = line.data[line.gap_start]
+        line.gap_end = line.gap_start + gap_size
+        return
+    }
+
+    if move_direction == .LEFT {
+        last_char := line.data[line.gap_end - 1]
+        line.data[line.gap_end - 1] = line.data[cursor_pos]
+        line.gap_start = cursor_pos
+        line.data[line.gap_start] = last_char
+        line.gap_end = line.gap_start + gap_size
+        return
+    }
 }
-

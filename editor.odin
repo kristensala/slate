@@ -109,7 +109,9 @@ Cursor :: struct {
 Cursor_Move_Direction :: enum {
     NONE,
     UP,
-    DOWN
+    DOWN,
+    LEFT,
+    RIGHT
 }
 
 draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, pos: [2]f32) {
@@ -354,18 +356,11 @@ editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
         editor.editor_offset_x = EDITOR_GUTTER_WIDTH
         return
     }
-    line := &editor.lines2[editor.cursor.line_index]
-    gap_size := line.gap_end - line.gap_start
 
     editor.cursor.col_index -= 1
 
-    if gap_size > 0 {
-        last_char := line.data[line.gap_end - 1]
-        line.data[line.gap_end - 1] = line.data[editor.cursor.col_index]
-        line.gap_start = editor.cursor.col_index
-        line.data[line.gap_start] = last_char
-        line.gap_end = line.gap_start + gap_size
-    }
+    line := &editor.lines2[editor.cursor.line_index]
+    move_gap(line, editor.cursor.col_index, .LEFT)
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
@@ -386,14 +381,7 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     }
 
     editor.cursor.col_index += 1
-
-    gap_size := line.gap_end - line.gap_start
-    if gap_size > 0 {
-        line.data[line.gap_start] = line.data[line.gap_end]
-        line.gap_start = editor.cursor.col_index
-        line.data[line.gap_end] = line.data[line.gap_start]
-        line.gap_end = line.gap_start + gap_size
-    }
+    move_gap(line, editor.cursor.col_index, .RIGHT)
 
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
