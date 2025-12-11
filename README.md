@@ -5,6 +5,9 @@
 ## Gap buffer demo
 ![Gap Buffer Demo](./assets/gap_buffer_insert_demo.gif)
 
+- Odin version: dev-2025-10-nightly
+- SDL3
+
 ## Roadmap
 - [x] Migrate from SDL2 to SDL3
 - [x] Render/draw only visible lines
