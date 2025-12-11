@@ -1,9 +1,9 @@
 # Slate Editor
 ## Current state of the editor
-![Demo](./assets/demo-2.gif)
+![Demo](./assets/demo2.gif)
 
 ## Gap buffer demo
-![Gap Buffer Demo](./assets/gap_buffer_demo.gif)
+![Gap Buffer Demo](./assets/gap_buffer_insert_demo.gif)
 
 ## Roadmap
 - [x] Migrate from SDL2 to SDL3
@@ -40,4 +40,3 @@
   but on performance mode they still seem too low on my desktop vs on my laptop.
   Desktop gets slightly over 100, but laptop goes to ~300 without the cap.
   Desktop has i5, laptop has i7
-
