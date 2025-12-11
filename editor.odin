@@ -4,10 +4,8 @@ import "core:fmt"
 import "core:os"
 import "core:math"
 import "core:strings"
-import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
-
 
 DEFAULT_EDITOR_FONT_SIZE :: 25
 EDITOR_GUTTER_WIDTH :: 70
@@ -45,7 +43,6 @@ lexer := []string{
     "case", "struct", "enum", "class", "public", "private",
     "dynamic", "rune", "break"
 }
-
 
 Editor :: struct {
     editor_gutter_clip: sdl.Rect,

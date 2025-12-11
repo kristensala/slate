@@ -5,7 +5,6 @@ import "core:strings"
 import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
-import xlib "vendor:x11/xlib"
 
 TEST_GAP_BUFFER :: true
 
@@ -384,4 +383,3 @@ main :: proc() {
         delete(editor.lines^)
     }
 }
-
