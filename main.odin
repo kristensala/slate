@@ -5,7 +5,8 @@ import "core:strings"
 import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
-import xlib "vendor:x11/xlib"
+
+TEST_GAP_BUFFER :: true
 
 main :: proc() {
     /*
@@ -78,6 +79,8 @@ main :: proc() {
         chars = line_chars,
     })
 
+    buffers : [dynamic]Gap_Buffer
+
     editor := Editor{
         editor_gutter_clip = sdl.Rect{0, 0, EDITOR_GUTTER_WIDTH, window_height},
         editor_clip = sdl.Rect{
@@ -91,6 +94,7 @@ main :: proc() {
         renderer = renderer,
         font = font,
         lines = &editor_lines,
+        lines2 = &buffers,
         glyph_atlas = &atlas,
         cursor = Cursor{
             memorized_col_index = 0,
@@ -126,7 +130,8 @@ main :: proc() {
         active_viewport = .EDITOR
     }
 
-    editor_on_file_open(&editor, "/home/salakris/Documents/dev/slate/vim_motion.odin")
+    editor_on_file_open_v2(&editor, "/home/salakris/Documents/dev/slate/tmp/test.txt")
+    //editor_on_file_open(&editor, "/home/salakris/Documents/dev/slate/vim_motion.odin")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/20MB-TXT-FILE.txt")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/50MB-TXT-FILE.txt")
     //editor_on_file_open(&editor, "/home/salakris/Downloads/sample-2mb-text-file.txt")
@@ -181,7 +186,8 @@ main :: proc() {
                         if editor.vim.mode == .NORMAL || editor.vim.mode == .PENDING {
                             exec_vim_motion_normal_mode(char, &editor)
                         } else if editor.vim.mode == .INSERT {
-                            editor_on_text_input(&editor, int(char))
+                            //editor_on_text_input(&editor, int(char))
+                            editor_on_text_input_v2(&editor, int(char))
                         }
                     } else {
                         editor_on_text_input(&editor, int(char))
@@ -246,12 +252,14 @@ main :: proc() {
                 }
 
                 if keycode == .LEFT {
-                    editor_move_cursor_left(&editor)
+                    //editor_move_cursor_left(&editor)
+                    editor_move_cursor_left_v2(&editor)
                     break
                 }
 
                 if keycode == .RIGHT {
-                    editor_move_cursor_right(&editor)
+                    //editor_move_cursor_right(&editor)
+                    editor_move_cursor_right_v2(&editor)
                     break
                 }
 
@@ -278,7 +286,7 @@ main :: proc() {
                 next_blink += u64(blink_interval)
             }
             // show FPS in window title
-            /*frame_count += 1;
+            frame_count += 1;
             current_time := sdl.GetTicks()
             if current_time - start_time >= 1000 { // 1 second passed
                 fps = u64(frame_count * 1000) / (current_time - start_time)
@@ -289,7 +297,7 @@ main :: proc() {
                 sdl.SetWindowTitle(window, fps_cstring)
                 frame_count = 0;
                 start_time = current_time
-            }*/
+            }
         }
 
         // Draw
@@ -335,7 +343,8 @@ main :: proc() {
                     cursor_width,
                     editor.theme.font_size)
             }
-            editor_draw_text(&editor)
+            //editor_draw_text(&editor)
+            editor_draw_text_v2(&editor)
 
             sdl.SetRenderClipRect(renderer, nil)
 
@@ -372,6 +381,6 @@ main :: proc() {
 
         delete(editor.glyph_atlas.glyphs)
         delete(editor.lines^)
+        delete(editor.lines2^)
     }
 }
-

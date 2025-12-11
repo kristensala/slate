@@ -1,11 +1,9 @@
 package main
 
 import "core:fmt"
-//import "core:mem"
 import "core:os"
 import "core:math"
 import "core:strings"
-import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 
@@ -18,7 +16,7 @@ EDITOR_BOTTOM_PADDING :: 60
 COMMAND_LINE_HEIGHT :: 25
 SPACE_ASCII_CODE :: 32
 
-BUFFER_SIZE :: 15
+SHOW_BUFFER :: true
 
 Viewport :: enum {
     EDITOR,
@@ -53,13 +51,16 @@ Editor :: struct {
 
     // Do not allow for the cursor to go past this line.
     // Once the cursor gets here, decrease the editor offset_x
-    cursor_right_side_cutoff_line: i32, 
+    cursor_right_side_cutoff_line: i32,
     command_clip: sdl.Rect,
     active_viewport: Viewport,
 
     renderer: ^sdl.Renderer,
     font: ^ttf.Font,
     glyph_atlas: ^Atlas,
+
+    //@todo: testing gap buffer
+    lines2: ^[dynamic]Gap_Buffer,
 
     lines: ^[dynamic]Line,
     lines_start: i32,
@@ -87,12 +88,13 @@ Theme :: struct {
 Line :: struct {
     chars: [dynamic]rune,
     x, y: i32,
-    is_dirty: bool
+    is_dirty: bool // @note: am I actually using this?
 }
 
 Cursor :: struct {
     line_index: i32,
     col_index: i32, // current col index
+
     fat_cursor: i32,
     skinny_cursor: i32,
 
@@ -107,7 +109,9 @@ Cursor :: struct {
 Cursor_Move_Direction :: enum {
     NONE,
     UP,
-    DOWN
+    DOWN,
+    LEFT,
+    RIGHT
 }
 
 draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, pos: [2]f32) {
@@ -128,6 +132,46 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
 
         sdl.RenderTexture(renderer, atlas.texture, &uv, &destination)
         pen_x += glyph.advance
+    }
+}
+editor_draw_text_v2 :: proc(editor: ^Editor) {
+    sdl.SetTextureColorMod(
+        editor.glyph_atlas.texture,
+        editor.theme.text_color.r,
+        editor.theme.text_color.g,
+        editor.theme.text_color.b)
+
+    pen_x := editor.editor_offset_x
+    baseline : i32 = 0
+
+    for &line, line_idx in editor.lines2 {
+        for char, char_idx in line.data {
+            if !SHOW_BUFFER {
+                if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
+                    continue
+                }
+            }
+
+            char_to_draw := char
+            if SHOW_BUFFER {
+                if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
+                    char_to_draw = '_'
+                }
+            }
+
+            glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char_to_draw))
+            glyph_x := pen_x
+            glyph_y := baseline
+            destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
+
+            uv : sdl.FRect
+            sdl.RectToFRect(glyph.uv, &uv)
+
+            sdl.RenderTexture(editor.renderer, editor.glyph_atlas.texture, &uv, &destination)
+            pen_x += glyph.advance
+        }
+        baseline += editor.glyph_atlas.font_line_skip
+        pen_x = editor.editor_offset_x
     }
 }
 
@@ -162,7 +206,7 @@ editor_draw_text :: proc(editor: ^Editor) {
         free(&data)
 
         for word, word_idx in split_line_data {
-            contains_keyword, start_idx, end_idx := contains(lexer, word)
+            contains_keyword, start_idx, end_idx := contains_where(lexer, word)
             if !comment_started {
                 if quotation_mark_count % 2 == 0 {
                     sdl.SetTextureColorMod(
@@ -170,6 +214,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.text_color.r,
                         editor.theme.text_color.g,
                         editor.theme.text_color.b)
+
                     quotation_mark_count = 0
                 }
             }
@@ -200,7 +245,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.glyph_atlas.texture,
                         editor.theme.string_color.r,
                         editor.theme.string_color.g,
-                        editor.theme.string_color.b) 
+                        editor.theme.string_color.b)
                 }
 
                 if comment_started {
@@ -210,7 +255,7 @@ editor_draw_text :: proc(editor: ^Editor) {
                         editor.theme.string_color.g,
                         editor.theme.string_color.b)
                 }
-                
+
                 glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
                 glyph_x := pen_x
                 glyph_y := baseline //- glyph.bearing_y
@@ -305,6 +350,43 @@ editor_move_cursor_left :: proc(editor: ^Editor) {
     assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
 }
 
+editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
+    if editor.cursor.col_index <= 0 {
+        editor.cursor.col_index = 0 // failsafe
+        editor.editor_offset_x = EDITOR_GUTTER_WIDTH
+        return
+    }
+
+    editor.cursor.col_index -= 1
+
+    line := &editor.lines2[editor.cursor.line_index]
+    move_gap(line, editor.cursor.col_index, .LEFT)
+
+    editor.cursor.memorized_col_index = editor.cursor.col_index
+    editor_update_cursor_col_and_offset(editor)
+
+    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH)
+}
+
+// @testing: shifting the gap buffer
+// @bug: when cursor is at the end of the data
+//       the last letter is still to the right of the buffer in the line.data.
+//       PS. Visually it is correct
+editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
+    line := &editor.lines2[editor.cursor.line_index]
+    char_count := line.len
+    fmt.println("char count: ", char_count, editor.cursor.col_index)
+    if char_count == 0 || char_count == editor.cursor.col_index {
+        return
+    }
+
+    editor.cursor.col_index += 1
+    move_gap(line, editor.cursor.col_index, .RIGHT)
+
+    editor.cursor.memorized_col_index = editor.cursor.col_index
+    editor_update_cursor_col_and_offset(editor)
+}
+
 editor_move_cursor_right :: proc(editor: ^Editor) {
     line := editor.lines[editor.cursor.line_index]
     char_count := i32(len(line.chars))
@@ -317,7 +399,7 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
     editor_update_cursor_col_and_offset(editor)
 }
 
-editor_on_backspace :: proc(editor: ^Editor) { 
+editor_on_backspace :: proc(editor: ^Editor) {
     if editor.cursor.col_index == 0 {
         if editor.cursor.line_index == 0 {
             return
@@ -356,7 +438,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
     line.is_dirty = true
 }
 
-editor_on_return :: proc(editor: ^Editor) { 
+editor_on_return :: proc(editor: ^Editor) {
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 
     current_line := &editor.lines[editor.cursor.line_index]
@@ -416,6 +498,47 @@ editor_on_tab :: proc(editor: ^Editor) {
     }
 }
 
+// @todo: start inserting into the gap buffer
+editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
+    glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
+    if glyph == nil {
+        fmt.eprintln("Glyph not found from atlas: ", char)
+        return
+    }
+
+    {
+        line := &editor.lines2[editor.cursor.line_index]
+        gap_start := line.gap_start
+        line.data[gap_start] = rune(char)
+        line.gap_start += 1
+        line.len = i32(len(line.data)) - (line.gap_end - line.gap_start)
+
+        // @note: might not be needed
+        // just a failsafe
+        if line.gap_start >= line.gap_end {
+            line.gap_start = 0
+            line.gap_end = 0
+        }
+
+        if line.gap_end - line.gap_start <= 0 {
+            grow_gap(line, editor.cursor.col_index)
+            editor_on_text_input_v2(editor, char) // @recursion
+            return
+        }
+    }
+
+    if editor.cursor.x + glyph.advance > editor.cursor_right_side_cutoff_line {
+        editor.editor_offset_x -= glyph.advance
+    } else {
+        editor.cursor.x += glyph.advance
+    }
+
+
+    editor.cursor.col_index += 1
+    editor.cursor.memorized_col_index = editor.cursor.col_index
+
+}
+
 editor_on_text_input :: proc(editor: ^Editor, char: int) {
     glyph := get_glyph_from_atlas(editor.glyph_atlas, char)
     if glyph == nil {
@@ -429,7 +552,6 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
         editor.cursor.x += glyph.advance
     }
 
-
     line := &editor.lines[editor.cursor.line_index]
     append_char_at(&line.chars, rune(char), editor.cursor.col_index)
 
@@ -439,15 +561,62 @@ editor_on_text_input :: proc(editor: ^Editor, char: int) {
     line.is_dirty = true
 }
 
-editor_draw_rect :: proc(renderer: ^sdl.Renderer, color: sdl.Color, pos: [2]i32, w: i32, h: i32) -> sdl.FRect {
+editor_draw_rect :: proc(
+    renderer: ^sdl.Renderer,
+    color: sdl.Color,
+    pos: [2]i32,
+    w: i32,
+    h: i32
+) -> sdl.FRect {
     ok := sdl.SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a)
     if !ok {
         fmt.eprintln("Could not set the rect color: ", sdl.GetError())
     }
-    rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)};
+    rect: sdl.FRect = {f32(pos.x), f32(pos.y), f32(w), f32(h)}
     sdl.RenderFillRect(renderer, &rect)
     return rect
 }
+
+// @note: gap buffer testing here
+editor_on_file_open_v2 :: proc(editor: ^Editor, file_name: string) {
+    data, ok := os.read_entire_file_from_filename(file_name)
+    if !ok {
+        fmt.eprintln("Could not read the file")
+        return
+    }
+    defer delete(data)
+
+    it := string(data)
+
+    buffers: [dynamic]Gap_Buffer
+    for line in strings.split_lines_iterator(&it) {
+        line_len := len(line)
+        cap := line_len + DEFAULT_GAP_BUFFER_SIZE
+
+        start := DEFAULT_GAP_BUFFER_SIZE
+        gap_buffer := Gap_Buffer{
+            data = make([]rune, cap),
+
+            gap_start = 0,
+            gap_end = DEFAULT_GAP_BUFFER_SIZE,
+
+            len = i32(line_len),
+            cap = i32(cap)
+        }
+
+        for character in line {
+            gap_buffer.data[start] = character
+            start = start + 1
+        }
+
+
+        append(&buffers, gap_buffer)
+    }
+
+    clear(editor.lines2)
+    append(editor.lines2, ..buffers[:])
+}
+
 
 editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
     data, ok := os.read_entire_file_from_filename(file_name)
@@ -466,13 +635,6 @@ editor_on_file_open :: proc(editor: ^Editor, file_name: string) {
         }
 
         for character, idx in line {
-            cp := int(character)
-            glyph := get_glyph_from_atlas(editor.glyph_atlas, cp)
-            if glyph == nil {
-                fmt.eprintln("Could not find glyph for: ", cp)
-                continue
-            }
-
             append(&editor_line.chars, character)
         }
 
@@ -513,13 +675,13 @@ editor_draw_line_nr :: proc(editor: ^Editor) {
 // put the cursor off the screen
 @(private = "file")
 cursor_pos_x_on_line :: proc(editor: ^Editor) -> i32 {
-    current_line := editor.lines[editor.cursor.line_index]
+    current_line := editor.lines2[editor.cursor.line_index]
     pos_x: i32 = EDITOR_GUTTER_WIDTH;
-    if current_line.chars == nil {
+    if current_line.data == nil {
         return pos_x
     }
 
-    for char, i in current_line.chars[:editor.cursor.col_index] {
+    for char, i in current_line.data[:editor.cursor.col_index] {
         glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char))
         pos_x += glyph.advance
     }
@@ -554,7 +716,10 @@ get_cursor_line_index_in_visible_lines :: proc(editor: Editor) -> i32 {
 }
 
 // @note: this handles scrolling but not jumping to the line
-editor_update_visible_lines :: proc(editor: ^Editor, move_dir: Cursor_Move_Direction = .NONE) {
+editor_update_visible_lines :: proc(
+    editor: ^Editor,
+    move_dir: Cursor_Move_Direction = .NONE
+) {
     assert(editor.line_height > 0, "Editor line height is not set")
 
     max_visible_rows := editor.editor_clip.h / editor.line_height
@@ -721,8 +886,11 @@ editor_update_cursor_col_and_offset :: proc(editor: ^Editor) {
 
     editor.cursor.x = cursor_x_on_line
 
-    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH, "Cursor pos can not be smaller than the gutter width")
-    assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line, "Cursor pos can not be bigger than the right side cutoff line")
+    assert(editor.cursor.x >= EDITOR_GUTTER_WIDTH,
+        "Cursor pos can not be smaller than the gutter width")
+
+    assert(editor.cursor.x <= editor.cursor_right_side_cutoff_line,
+        "Cursor pos can not be bigger than the right side cutoff line")
 }
 
 reset_cursor :: proc(editor: ^Editor) {
@@ -747,6 +915,4 @@ reset_cursor_to_first_word :: proc(e: ^Editor) {
         editor_move_cursor_to(e, e.cursor.line_index, i32(i))
         break
     }
-
 }
-
