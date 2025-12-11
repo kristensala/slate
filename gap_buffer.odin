@@ -2,6 +2,11 @@ package main
 
 import "core:fmt"
 
+/*
+    @todo: how does the gap buffer work when moving
+    between the lines(enter, backspace, arrow keys)? - 12.12.25
+*/
+
 // @note(ksala): for testing purpose keep the buffer size small.
 // After testing, each line buffer should be around 32 at least
 DEFAULT_GAP_BUFFER_SIZE :: 10
