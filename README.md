@@ -1,6 +1,6 @@
 # Slate Editor
 ## Current state of the editor
-![Demo](./assets/demo2.gif)
+![Demo](./assets/demo-2.gif)
 
 ## Gap buffer demo
 ![Gap Buffer Demo](./assets/gap_buffer_insert_demo.gif)
