@@ -380,6 +380,7 @@ editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
 editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     line := &editor.lines2[editor.cursor.line_index]
     char_count := line.len
+    fmt.println("char count: ", char_count, editor.cursor.col_index)
     if char_count == 0 || char_count == editor.cursor.col_index {
         return
     }
@@ -394,6 +395,8 @@ editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
         line.gap_end = line.gap_start + gap_size
     }
 
+    // @todo: this might not work with the gap buffer;
+    // Might have to exclude the buffer every time
     editor.cursor.memorized_col_index = editor.cursor.col_index
     editor_update_cursor_col_and_offset(editor)
 }
@@ -522,7 +525,7 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
         gap_start := line.gap_start
         line.data[gap_start] = rune(char)
         line.gap_start += 1
-        line.len += 1
+        line.len = i32(len(line.data)) - (line.gap_end - line.gap_start)
 
         // @note: might not be needed
         // just a failsafe
@@ -533,7 +536,7 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
 
         if line.gap_end - line.gap_start <= 0 {
             grow_gap(line, editor.cursor.col_index)
-            editor_on_text_input_v2(editor, char) // @recursion here
+            editor_on_text_input_v2(editor, char) // @recursion
             return
         }
     }

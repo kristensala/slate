@@ -103,4 +103,3 @@ split_on_multi :: proc(s: string, separators: []string) {
 
     fmt.println(result)
 }
-

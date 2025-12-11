@@ -107,7 +107,7 @@ build_atlas :: proc(renderer: ^sdl.Renderer, font: ^ttf.Font, atlas: ^Atlas) {
 
         // Top-left where bitmap should go:
         dst_x := cell.x + pad + min_x // minx = bearingX
-        dst_y := baseline_y 
+        dst_y := baseline_y
 
         dst : sdl.Rect = { dst_x, dst_y, glyph_surface.w, glyph_surface.h }
 
@@ -144,4 +144,3 @@ get_glyph_from_atlas :: proc(atlas: ^Atlas, code_point: int) -> ^Glyph {
 
     return glyph
 }
-
