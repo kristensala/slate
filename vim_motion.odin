@@ -1,6 +1,9 @@
 package main
 
-import "core:fmt"
+/*
+    @todo: rename this file to keymap.odin
+    and move all the keymaps from main.odin here - 12.12.25
+*/
 
 Vim :: struct {
     enabled: bool,
