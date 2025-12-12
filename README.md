@@ -1,4 +1,6 @@
+<br><br><br>
 ![Logo](./assets/logo.png)
+<br><br><br>
 
 ## Current state of the editor
 ![Demo](./assets/demo-2.gif)
