@@ -16,7 +16,10 @@ EDITOR_BOTTOM_PADDING :: 60
 COMMAND_LINE_HEIGHT :: 25
 SPACE_ASCII_CODE :: 32
 
-SHOW_BUFFER :: true
+/*
+   When enabled, gap buffer is visualized in the editor as '_'
+ */
+SHOW_GAP_BUFFER :: true
 
 Viewport :: enum {
     EDITOR,
@@ -34,6 +37,7 @@ Viewport :: enum {
    ...
    I do know the index on the cursor inside of the buffer. I can take a substring starting anywhere close to the cursor
  */
+
 
 @(rodata)
 lexer := []string{
@@ -71,7 +75,12 @@ Editor :: struct {
     cmd_line: Command_Line,
 
     vim: Vim,
-    theme: Theme
+    theme: Theme,
+
+    // @todo: maybe test with all data as []rune
+    // not each line separatelly.
+    // Have to start counting line breaks
+    data: ^[]rune // not in use right now, but might be a better option for a gap buffer
 }
 
 Theme :: struct {
@@ -124,6 +133,8 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
         if glyph == nil {
             continue
         }
+        defer free(glyph)
+
         glyph_x := pen_x
         destination : sdl.FRect = {f32(glyph_x), pos.y, f32(glyph.width), f32(glyph.height)}
 
@@ -146,20 +157,26 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
 
     for &line, line_idx in editor.lines2 {
         for char, char_idx in line.data {
-            if !SHOW_BUFFER {
+            if !SHOW_GAP_BUFFER {
                 if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
                     continue
                 }
             }
 
             char_to_draw := char
-            if SHOW_BUFFER {
+            if SHOW_GAP_BUFFER {
                 if i32(char_idx) >= line.gap_start && i32(char_idx) < line.gap_end {
                     char_to_draw = '_'
                 }
             }
 
             glyph := get_glyph_from_atlas(editor.glyph_atlas, int(char_to_draw))
+            if glyph == nil {
+                fmt.println(#procedure, "Could not get the glyph from atlas", char_to_draw)
+                continue
+            }
+            defer free(glyph)
+
             glyph_x := pen_x
             glyph_y := baseline
             destination : sdl.FRect = {f32(glyph_x), f32(glyph_y), f32(glyph.width), f32(glyph.height)}
@@ -438,6 +455,15 @@ editor_on_backspace :: proc(editor: ^Editor) {
     line.is_dirty = true
 }
 
+// with gap buffer
+// Do I move the buffer to the new line?
+editor_on_return_v2 :: proc(editor: ^Editor) {
+    // reset horizontal offset
+    editor.editor_offset_x = EDITOR_GUTTER_WIDTH
+
+    current_line := &editor.lines2[editor.cursor.line_index]
+}
+
 editor_on_return :: proc(editor: ^Editor) {
     editor.editor_offset_x = EDITOR_GUTTER_WIDTH
 
@@ -505,6 +531,7 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
         fmt.eprintln("Glyph not found from atlas: ", char)
         return
     }
+    defer free(glyph)
 
     {
         line := &editor.lines2[editor.cursor.line_index]
@@ -532,7 +559,6 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
     } else {
         editor.cursor.x += glyph.advance
     }
-
 
     editor.cursor.col_index += 1
     editor.cursor.memorized_col_index = editor.cursor.col_index
@@ -589,6 +615,8 @@ editor_on_file_open_v2 :: proc(editor: ^Editor, file_name: string) {
     it := string(data)
 
     buffers: [dynamic]Gap_Buffer
+    defer delete(buffers)
+
     for line in strings.split_lines_iterator(&it) {
         line_len := len(line)
         cap := line_len + DEFAULT_GAP_BUFFER_SIZE

@@ -6,7 +6,6 @@ import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 
-TEST_GAP_BUFFER :: true
 
 main :: proc() {
     /*
@@ -66,10 +65,11 @@ main :: proc() {
         return
     }
     defer ttf.CloseFont(font)
+
     ttf.SetFontKerning(font, true)
 
-    atlas := Atlas{}
-    build_atlas(renderer, font, &atlas)
+    atlas := new(Atlas)
+    build_atlas(renderer, font, atlas)
 
     editor_lines : [dynamic]Line
     line_chars : [dynamic]rune
@@ -95,7 +95,7 @@ main :: proc() {
         font = font,
         lines = &editor_lines,
         lines2 = &buffers,
-        glyph_atlas = &atlas,
+        glyph_atlas = atlas,
         cursor = Cursor{
             memorized_col_index = 0,
             line_index = 0,
@@ -111,7 +111,7 @@ main :: proc() {
                 x = 0,
                 col_index = 0
             },
-            input = &[dynamic]rune{}
+            input = new([dynamic]rune)
         },
         line_height = atlas.font_line_skip,
         vim = Vim{
@@ -382,5 +382,6 @@ main :: proc() {
         delete(editor.glyph_atlas.glyphs)
         delete(editor.lines^)
         delete(editor.lines2^)
+        delete(editor.cmd_line.input^)
     }
 }

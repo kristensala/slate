@@ -48,7 +48,13 @@ grow_gap :: proc(line: ^Gap_Buffer, cursor_pos: i32) {
     line.gap_size = gap_end - cursor_pos
 }
 
-move_gap :: proc(line: ^Gap_Buffer, cursor_pos: i32, move_direction: Cursor_Move_Direction) {
+// @todo: I should not move the gap on cursor move.
+// Insted move it when I start editing the text
+move_gap :: proc(
+    line: ^Gap_Buffer,
+    cursor_pos: i32,
+    move_direction: Cursor_Move_Direction
+) {
     gap_size := line.gap_end - line.gap_start
     if gap_size <= 0 {
         return
