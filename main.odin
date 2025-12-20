@@ -6,7 +6,6 @@ import "core:unicode/utf8"
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 
-
 main :: proc() {
     /*
        @note: sdl.CreateWindow already calls sdl.Init if it
@@ -190,7 +189,7 @@ main :: proc() {
                             editor_on_text_input_v2(&editor, int(char))
                         }
                     } else {
-                        editor_on_text_input(&editor, int(char))
+                        //editor_on_text_input(&editor, int(char))
                     }
 
                     // cancel cursor blinking while typing
@@ -207,7 +206,6 @@ main :: proc() {
             case .KEY_DOWN:
                 cursor_visible = true
                 next_blink = sdl.GetTicks() + u64(blink_interval)
-
                 keycode := event.key.scancode
                 if keycode == .TAB {
                     editor_on_tab(&editor)
@@ -380,6 +378,7 @@ main :: proc() {
         }
 
         delete(editor.glyph_atlas.glyphs)
+        sdl.DestroyTexture(editor.glyph_atlas.texture)
         delete(editor.lines^)
         delete(editor.lines2^)
         delete(editor.cmd_line.input^)

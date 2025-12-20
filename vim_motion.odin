@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 /*
     @todo: rename this file to keymap.odin
     and move all the keymaps from main.odin here - 12.12.25
@@ -114,11 +115,6 @@ exec_vim_motion_normal_mode :: proc(motion: rune, e: ^Editor) {
         editor_move_cursor_left(e)
         break
     case 'i':
-        if len(e.vim.motion_store) > 0 && e.vim.motion_store[0] == 'd' {
-            //e.vim_motion_store[1] = motion
-            break;
-        }
-
         e.vim.mode = .INSERT
         break
     case 'o':

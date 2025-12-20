@@ -133,7 +133,6 @@ draw_custom_text :: proc(renderer: ^sdl.Renderer, atlas: ^Atlas, text: string, p
         if glyph == nil {
             continue
         }
-        defer free(glyph)
 
         glyph_x := pen_x
         destination : sdl.FRect = {f32(glyph_x), pos.y, f32(glyph.width), f32(glyph.height)}
@@ -175,7 +174,6 @@ editor_draw_text_v2 :: proc(editor: ^Editor) {
                 fmt.println(#procedure, "Could not get the glyph from atlas", char_to_draw)
                 continue
             }
-            defer free(glyph)
 
             glyph_x := pen_x
             glyph_y := baseline
@@ -386,13 +384,16 @@ editor_move_cursor_left_v2 :: proc(editor: ^Editor) {
 }
 
 // @testing: shifting the gap buffer
+// @todo: shoud the gap move, when I actually edit the text, not on cursor move?
 // @bug: when cursor is at the end of the data
 //       the last letter is still to the right of the buffer in the line.data.
 //       PS. Visually it is correct
 editor_move_cursor_right_v2 :: proc(editor: ^Editor) {
     line := &editor.lines2[editor.cursor.line_index]
     char_count := line.len
+
     fmt.println("char count: ", char_count, editor.cursor.col_index)
+
     if char_count == 0 || char_count == editor.cursor.col_index {
         return
     }
@@ -417,6 +418,8 @@ editor_move_cursor_right :: proc(editor: ^Editor) {
 }
 
 editor_on_backspace :: proc(editor: ^Editor) {
+    // merge the current row with the one above,
+    // unless the current row is the first row
     if editor.cursor.col_index == 0 {
         if editor.cursor.line_index == 0 {
             return
@@ -455,6 +458,7 @@ editor_on_backspace :: proc(editor: ^Editor) {
     line.is_dirty = true
 }
 
+// @todo
 // with gap buffer
 // Do I move the buffer to the new line?
 editor_on_return_v2 :: proc(editor: ^Editor) {
@@ -531,7 +535,6 @@ editor_on_text_input_v2 :: proc(editor: ^Editor, char: int) {
         fmt.eprintln("Glyph not found from atlas: ", char)
         return
     }
-    defer free(glyph)
 
     {
         line := &editor.lines2[editor.cursor.line_index]
