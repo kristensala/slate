@@ -1,4 +1,4 @@
-![Logo](./assets/logo.png)
+![Logo](./assets/slate_logo.png)
 
 ## Current state of the editor
 ![Demo](./assets/demo-2.gif)
